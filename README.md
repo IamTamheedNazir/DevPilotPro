@@ -380,6 +380,10 @@ It's not just a spec tool — it's a **workflow engine** for vibe coders.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
 
+## Built By
+
+DevPilot was built by an AI coding agent (Claude) as a demonstration of what's possible when AI understands the full lifecycle of software development — from idea to working product.
+
 ## License
 
 MIT
