@@ -1,115 +1,248 @@
 # DevPilot
 
-**The vibe coding copilot. Describe what you want → get a plan → build it right.**
+**The vibe coding copilot. Divide work, assign agents, ship properly.**
 
-You're a vibe coder. You describe projects in natural language, hand them to coding agents, and ship fast. But there's a gap: agents don't understand the **order** of things, the **dependencies**, or the **quality checks** needed to build a real product.
+Vibe coding is exploding. You describe what you want, agents build it, you ship fast. But there's a problem nobody's talking about:
 
-DevPilot fills that gap.
+> **You're giving one task to Claude Code, another to Codex, another to Cursor — and nothing connects.**
 
-## The Problem
+DevPilot fixes this. It divides your project into ordered tasks, assigns them to the right agents, and makes sure everything works together.
 
-Vibe coding is powerful, but:
-- You describe a project and the agent builds random files in random order
-- There's no roadmap — no idea what to build first, what depends on what
-- No audit strategy — no way to know if the code is actually good
-- Agents don't know the full context — they build pieces without understanding the whole
+---
 
-## The Solution
+## The Problem Vibe Coders Face
 
-DevPilot takes your natural language idea and turns it into:
-
+### Scenario 1: Random Agent Chaos
 ```
-Your Idea → Spec → Roadmap → Mini-Tasks → Audit Strategy → Agent Prompts
+You: "Build me a chat app"
+
+Claude Code: *builds the UI*
+Codex: *builds the API*
+Cursor: *builds the database*
+
+Result: 3 separate projects that don't connect
 ```
 
-Then your coding agents build it in the right order, with the right context, and quality checks at every step.
+### Scenario 2: Wrong Order
+```
+You: "Add authentication"
 
-## How It Works
+Agent: *builds login page first*
+Agent: *then tries to build auth API*
+Agent: *realizes there's no user model*
 
-### 1. You describe your project
+Result: Broken code, wasted tokens, frustrated you
+```
+
+### Scenario 3: No Quality Checks
+```
+You: "Ship it"
+
+Agent: *builds everything*
+You: *deploy*
+Users: *find 50 bugs*
+
+Result: Broken product, bad reputation
+```
+
+### Scenario 4: Fragmented Workflow
+```
+Monday: Give task 1 to Claude Code
+Tuesday: Give task 2 to Codex
+Wednesday: Give task 3 to Cursor
+Thursday: Realize tasks 1 and 2 conflict
+Friday: Start over
+```
+
+**The core problem:** You're the project manager, but you don't have the tools to manage.
+
+---
+
+## How DevPilot Solves This
+
+### 1. Divide Work Automatically
+
+You describe your project once. DevPilot breaks it into ordered tasks:
+
 ```bash
 devpilot create "A real-time chat app with rooms, reactions, file sharing"
 ```
 
-### 2. DevPilot generates a spec and roadmap
+**What DevPilot generates:**
 ```
-📋 16 tasks across 6 phases
-🏗️ Scaffold → Schema → Auth → API → UI → Tests
-🔍 Audit strategy with automated + manual checks
-🤖 Agent prompts with full context and acceptance criteria
-```
+Phase 1: Scaffold        (2 tasks)
+Phase 2: Schema          (4 tasks)
+Phase 3: Auth            (3 tasks)
+Phase 4: API             (5 tasks)
+Phase 5: UI              (4 tasks)
+Phase 6: Tests           (2 tasks)
+Phase 7: Docs            (1 task)
 
-### 3. Hand off to your coding agent
-```bash
-cd projects/my-chat-app
-# Claude Code reads .claude/CLAUDE.md and knows exactly what to build
-# Codex reads CODEX.md and follows the execution plan
-# Cursor reads .cursor/rules and builds components in order
+Total: 21 tasks with dependencies and priorities
 ```
 
-### 4. Quality at every step
-Each phase has a **gate** — automated checks (lint, types) and manual checks (security, a11y) that must pass before moving to the next phase.
+### 2. Assign Agents to the Right Tasks
 
-## Install
+DevPilot knows which agent is best for each job:
 
-Works on **Windows**, **Mac**, and **Linux**.
+```
+Task: "Initialize React project"
+  → Assigned to: Claude Code (best at scaffolding)
 
-```bash
-# Install globally
-npm install -g devpilot
+Task: "Create user database model"
+  → Assigned to: Codex (best at schema)
 
-# Or use without installing
-npx devpilot
+Task: "Build login page UI"
+  → Assigned to: Cursor (best at UI)
+
+Task: "Refactor API routes"
+  → Assigned to: Aider (best at refactoring)
 ```
 
-No compilation needed. It's a Node.js CLI that runs anywhere Node.js runs.
+### 3. Ensure Correct Order
+
+Tasks are ordered by dependencies:
+
+```
+Task 1: Create user model (no deps)
+  ↓
+Task 2: Create auth API (depends on Task 1)
+  ↓
+Task 3: Build login page (depends on Task 2)
+  ↓
+Task 4: Add protected routes (depends on Task 2 and 3)
+```
+
+**Agents never build something before its dependencies are ready.**
+
+### 4. Quality at Every Step
+
+Each phase has a **gate** — checks that must pass before moving on:
+
+```
+Phase 1 Gate:
+  ✅ TypeScript compiles
+  ✅ Dev server starts
+
+Phase 3 Gate (Auth):
+  🔒 No hardcoded secrets
+  🔒 Input validation present
+  🔒 Token validation works
+
+Phase 5 Gate (UI):
+  ♿ ARIA labels present
+  📱 Responsive on mobile
+  ⚡ No unnecessary re-renders
+```
+
+---
+
+## The Vibe Coder Workflow
+
+### Before DevPilot
+```
+You → Agent → Broken code → Debug → Fix → Debug → Fix → Give up
+```
+
+### With DevPilot
+```
+You → DevPilot → Roadmap → Tasks → Agent → Working code → Ship
+```
+
+---
 
 ## Quick Start
 
-```bash
-# One command: describe → plan → build
-devpilot quick
+### Install
 
-# Or step by step:
-devpilot create "Your project idea here"
-devpilot roadmap my-project.spec.md
-devpilot orchestrate my-project.spec.md --framework react --agents claude-code
+```bash
+npm install -g devpilot
 ```
+
+Works on **Windows**, **Mac**, and **Linux**. No compilation needed.
+
+### One-Command Magic
+
+```bash
+# Describe your project, DevPilot does the rest
+devpilot quick
+```
+
+### Step by Step
+
+```bash
+# 1. Create a spec from natural language
+devpilot create "A task management app with drag-and-drop"
+
+# 2. Generate a roadmap with ordered tasks
+devpilot roadmap my-task-app.spec.md --framework react
+
+# 3. Orchestrate everything: scaffold + tasks + agent prompts
+devpilot orchestrate my-task-app.spec.md --framework react --agents claude-code codex cursor
+
+# 4. Hand off to your coding agent
+cd projects/my-task-app
+# Claude Code reads .claude/CLAUDE.md and knows exactly what to build
+```
+
+---
 
 ## Commands
 
 | Command | What it does |
 |---------|-------------|
-| `devpilot quick` | Full interactive wizard — describe it, plan it, build it |
-| `devpilot create <prompt>` | Generate a spec from natural language |
-| `devpilot init` | Create a spec template to fill in |
-| `devpilot validate` | Check your spec is complete |
-| `devpilot roadmap` | Generate a phased roadmap with dependencies |
-| `devpilot orchestrate` | Full pipeline: spec → roadmap → tasks → agent prompts |
-| `devpilot generate` | Scaffold the project with framework files |
+| `devpilot quick` | Full wizard: describe → plan → build |
+| `devpilot create <prompt>` | Generate spec from natural language |
+| `devpilot init` | Create spec template |
+| `devpilot validate` | Check spec is complete |
+| `devpilot roadmap` | Generate phased roadmap with dependencies |
+| `devpilot orchestrate` | Full pipeline: spec → tasks → agent prompts |
+| `devpilot generate` | Scaffold project with framework files |
 | `devpilot agents` | List supported coding agents |
 | `devpilot push` | Push to GitHub |
 
-## What Makes This Different
+---
 
-### Without DevPilot
+## Multi-Agent Orchestration
+
+### The Problem
 ```
-You: "Build me a chat app"
-Agent: *creates 50 files in random order, no tests, no structure*
-Result: Broken code that doesn't work together
+You: Give task to Claude Code
+You: Give different task to Codex
+You: Give another task to Cursor
+Result: 3 disconnected codebases
 ```
 
-### With DevPilot
+### The DevPilot Solution
 ```
-You: "Build me a chat app"
-DevPilot: "Here's the roadmap, 16 tasks in 6 phases with audit checks"
-Agent: *builds scaffold, then schema, then auth, then API, then UI, then tests*
-Result: Working product with quality at every step
+DevPilot: "Here's the plan. Task 1 goes to Claude Code. Task 2 goes to Codex.
+           Task 3 goes to Cursor. Each agent gets full context."
+Result: One cohesive project built by the right agents
 ```
+
+### How Agent Assignment Works
+
+| Agent | Best For | Why |
+|-------|----------|-----|
+| **Claude Code** | Full-stack, complex features | Understands entire codebase |
+| **Codex** | Scaffolding, schema, config | Fast at generating boilerplate |
+| **Cursor** | UI, refactoring, tests | Great at visual components |
+| **Windsurf** | UI, API integration | Good at connecting pieces |
+| **Copilot** | Scaffolding, API routes | Quick code generation |
+| **Aider** | Refactoring, debugging | Excellent at fixing code |
+
+### Each Agent Gets
+- **Full context** — phase, framework, type, priority, effort
+- **Dependencies** — what's already built
+- **Files to create** — exactly which files to modify
+- **Acceptance criteria** — checklist for completion
+- **Quality checks** — automated + manual
+
+---
 
 ## Roadmap Engine
 
-DevPilot automatically decomposes your spec into phases:
+DevPilot automatically decomposes your project into phases:
 
 ```
 Phase 1: Project Scaffolding     → Project compiles, dev server starts
@@ -128,53 +261,72 @@ Each phase has:
 - **Audit checks** (automated: lint, types; manual: security, a11y)
 - **Phase gates** (quality bar that must be met before proceeding)
 
-## Agent Orchestration
+---
 
-DevPilot assigns tasks to agents based on their strengths:
+## Task Decomposition
 
-| Agent | Best For |
-|-------|----------|
-| **Claude Code** | Full-stack, all task types |
-| **Codex** | Scaffolding, schema, API, config |
-| **Cursor** | UI, refactoring, tests |
-| **Windsurf** | UI, API, refactoring |
-| **Copilot** | Scaffolding, API, tests |
-| **Aider** | Refactoring, API, tests |
+### Without DevPilot
+```
+"Build a chat app" → Agent builds random files in random order
+```
 
-Each agent gets a prompt with:
-- Full project context (phase, framework, type, priority)
-- Dependencies (what's already built)
-- Files to create/modify
-- Acceptance criteria (checklist)
-- Quality checks (automated + manual)
+### With DevPilot
+```
+"Build a chat app" → 21 atomic tasks with dependencies:
+
+⬜ Task 1: Initialize React project [small] — critical
+   ⬜ Task 2: Configure tooling [tiny] — depends on Task 1
+   ⬜ Task 3: Create user model [tiny] — high
+   ⬜ Task 4: Create auth endpoints [small] — depends on Task 3
+   ⬜ Task 5: Build login page [medium] — depends on Task 4
+   ...
+```
+
+---
+
+## Audit Strategy
+
+Every phase has quality checks:
+
+| Category | Automated | Manual |
+|----------|-----------|--------|
+| **Code Quality** | `npm run lint`, `tsc --noEmit` | Code review |
+| **Security** | — | No hardcoded secrets, input validation |
+| **Accessibility** | — | ARIA labels, responsive layout |
+| **Performance** | — | No N+1 queries, no unnecessary re-renders |
+| **Testing** | `npm test`, coverage report | Test completeness |
+
+---
 
 ## Framework Support
 
-DevPilot scaffolds projects for any major framework:
+| Framework | Language | Best For |
+|-----------|----------|----------|
+| React (Vite) | TypeScript | SPAs, dashboards |
+| Next.js | TypeScript | Full-stack apps |
+| Vue 3 | TypeScript | Reactive UIs |
+| SvelteKit | TypeScript | Lightweight apps |
+| Express | TypeScript | REST APIs |
+| Fastify | TypeScript | High-perf APIs |
+| Django | Python | Full-stack apps |
+| Flask | Python | Lightweight APIs |
+| Go | Go | Microservices |
+| Rust | Rust | Systems programming |
+| Vanilla | JS/HTML | Simple sites |
 
-| Framework | Language | Scaffolding |
-|-----------|----------|-------------|
-| React (Vite) | TypeScript | package.json, tsconfig, index.html |
-| Next.js | TypeScript | App Router, package.json |
-| Vue 3 | TypeScript | Vite, package.json |
-| SvelteKit | TypeScript | SvelteKit config, routes |
-| Express | TypeScript | Server, routes |
-| Fastify | TypeScript | Server, routes |
-| Django | Python | settings, manage.py, urls |
-| Flask | Python | app.py, routes |
-| Go | Go | go.mod, main.go |
-| Rust | Rust | Cargo.toml, main.rs |
-| Vanilla | JS/HTML | index.html |
+---
 
 ## AI-Powered Spec Generation
 
 ```bash
-# Offline (no API key needed) — generates a structured spec from your description
+# Offline (no API key) — generates structured spec
 devpilot create "A social network for developers with profiles, repos, and follows"
 
-# AI-powered (needs OpenAI API key) — generates a detailed spec with AI
+# AI-powered (needs OpenAI key) — generates detailed spec
 devpilot create "A social network for developers" --ai
 ```
+
+---
 
 ## GitHub Integration
 
@@ -186,24 +338,47 @@ devpilot config --github-token ghp_xxx
 devpilot orchestrate my-spec.md --github myuser/myrepo --private
 ```
 
+---
+
 ## Configuration
 
 ```bash
-devpilot config --list                    # View all settings
+devpilot config --list                    # View settings
 devpilot config --framework nextjs        # Set default framework
 devpilot config --agents claude-code codex  # Set default agents
 devpilot config --github-token ghp_xxx   # Set GitHub token
-devpilot config --openai-key sk-xxx      # Set OpenAI key for AI specs
+devpilot config --openai-key sk-xxx      # Set OpenAI key
 ```
 
-## Development
+---
 
-```bash
-git clone https://github.com/yourusername/devpilot.git
-cd devpilot
-npm install
-npx tsx src/cli/index.ts --help
-```
+## Comparison
+
+| Feature | Manual Vibe Coding | **DevPilot** |
+|---------|-------------------|-------------|
+| Work division | ❌ You figure it out | ✅ Automatic task decomposition |
+| Agent assignment | ❌ Random | ✅ Best agent for each job |
+| Task ordering | ❌ Wrong order | ✅ Dependency-aware |
+| Quality checks | ❌ Hope it works | ✅ Gates at every phase |
+| Multi-agent coordination | ❌ Fragmented | ✅ Unified pipeline |
+| Effort estimation | ❌ No idea | ✅ tiny/small/medium/large |
+| Reusability | ❌ Start over each time | ✅ Config persistence |
+
+---
+
+## Why This Matters
+
+Vibe coding is the future of software development. But without structure, it's chaos.
+
+**DevPilot brings the structure.** It takes your natural language idea and turns it into an ordered plan with quality checks, so your coding agents build the right thing in the right order.
+
+It's not just a spec tool — it's a **workflow engine** for vibe coders.
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
 
 ## License
 
