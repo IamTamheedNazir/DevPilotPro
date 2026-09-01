@@ -1,0 +1,1 @@
+{"root":["./src/cli/config.ts","./src/cli/github.ts","./src/cli/index.ts","./src/cli/project-generator.ts","./src/cli/spec-parser.ts","./src/cli/types.ts"],"version":"5.9.3"}
