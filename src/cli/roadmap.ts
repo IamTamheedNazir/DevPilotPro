@@ -14,6 +14,8 @@ import {
   Framework,
   Agent,
 } from "./types.js";
+import { IntentAnalyzer, ProjectIntent, FeatureConnection } from "./intent.js";
+import { FeatureGraph, FeatureNode } from "./intent.js";
 
 // ─── Task Type Detection ────────────────────────────────────────────────
 
@@ -71,11 +73,18 @@ export class RoadmapGenerator {
   private spec: SpecFile;
   private framework: Framework;
   private agents: Agent[];
+  private intent: ProjectIntent;
+  private featureGraph: FeatureGraph;
 
   constructor(spec: SpecFile, framework: Framework, agents: Agent[]) {
     this.spec = spec;
     this.framework = framework;
     this.agents = agents;
+
+    // Analyze intent and build feature graph
+    const analyzer = new IntentAnalyzer(spec);
+    this.intent = analyzer.analyze();
+    this.featureGraph = new FeatureGraph(spec, this.intent);
   }
 
   generate(): Roadmap {
@@ -89,6 +98,14 @@ export class RoadmapGenerator {
       estimatedComplexity: this.assessComplexity(totalTasks, phases),
       createdAt: new Date().toISOString(),
     };
+  }
+
+  getIntent(): ProjectIntent {
+    return this.intent;
+  }
+
+  getFeatureGraph(): FeatureGraph {
+    return this.featureGraph;
   }
 
   private buildPhases(): Phase[] {
@@ -486,6 +503,16 @@ export class RoadmapGenerator {
         ? "Next.js"
         : this.framework.charAt(0).toUpperCase() + this.framework.slice(1);
 
+    // Get related features from graph
+    const relatedFeatures = this.findRelatedFeatures(sectionTitle);
+    const connections = this.findConnections(sectionTitle);
+
+    // Get relevant user actions
+    const relevantActions = this.intent.coreActions.filter(
+      (a) => a.features.some((f) => f.toLowerCase().includes(sectionTitle.toLowerCase())) ||
+             sectionTitle.toLowerCase().includes(a.action.toLowerCase().split(" ")[0])
+    );
+
     return `## Task: ${sectionTitle}
 
 ### What to build
@@ -496,18 +523,54 @@ ${content}
 - Task type: ${taskType}
 - Follow existing project patterns and conventions
 
+### Project Purpose
+${this.intent.purpose}
+
+### How This Connects
+${connections.length > 0 ? connections.map((c) => `- ${c.from} → ${c.to}: ${c.description}`).join("\n") : "- This is a standalone component"}
+
+### Related Features
+${relatedFeatures.length > 0 ? relatedFeatures.map((f) => `- ${f.name} (${f.type})`).join("\n") : "- No direct dependencies"}
+
+### User Actions This Supports
+${relevantActions.length > 0 ? relevantActions.map((a) => `- ${a.action}: ${a.result}`).join("\n") : "- General functionality"}
+
 ### Requirements
 1. Implement the feature as described
 2. Handle errors gracefully
 3. Follow TypeScript best practices
 4. Add appropriate types
 5. Write self-documenting code
+6. Ensure it connects properly to related features
 
 ### Acceptance criteria
 - The feature works as described
 - No TypeScript errors
 - Follows project code style
-- Handles edge cases`;
+- Handles edge cases
+- Integrates correctly with related features`;
+  }
+
+  private findRelatedFeatures(sectionTitle: string): FeatureNode[] {
+    const graph = this.featureGraph;
+    const nodes = graph.getNodes();
+    const lower = sectionTitle.toLowerCase();
+
+    return nodes.filter(
+      (n) =>
+        n.name.toLowerCase().includes(lower) ||
+        lower.includes(n.name.toLowerCase()) ||
+        n.dependsOn.some((d) => d.includes(lower)) ||
+        n.enhances.some((e) => e.includes(lower))
+    );
+  }
+
+  private findConnections(sectionTitle: string): FeatureConnection[] {
+    return this.intent.connections.filter(
+      (c) =>
+        c.from.toLowerCase().includes(sectionTitle.toLowerCase()) ||
+        c.to.toLowerCase().includes(sectionTitle.toLowerCase())
+    );
   }
 
   private inferFiles(text: string, taskType: TaskType): string[] {

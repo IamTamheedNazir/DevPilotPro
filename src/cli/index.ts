@@ -57,7 +57,7 @@ program
       console.log(`\n  ✨ Created spec file: ${filePath}\n`);
       console.log("  Next steps:");
       console.log(`    1. Review and edit ${filePath}`);
-      console.log(`    2. Run: specforge generate ${filePath}`);
+      console.log(`    2. Run: devpilot generate ${filePath}`);
       console.log(`    3. Open the project with your coding agent\n`);
       return;
     }
@@ -76,7 +76,7 @@ program
     console.log(`\n  ✨ Created spec file: ${filePath}\n`);
     console.log("  Next steps:");
     console.log(`    1. Edit ${filePath} with your project details`);
-    console.log(`    2. Run: specforge generate ${filePath}`);
+    console.log(`    2. Run: devpilot generate ${filePath}`);
     console.log(`    3. Open the generated project with your coding agent\n`);
   });
 
@@ -124,7 +124,7 @@ program
 
       console.log("  Next steps:");
       console.log(`    1. Review ${specFilePath}`);
-      console.log(`    2. Run: specforge generate ${specFilePath}`);
+      console.log(`    2. Run: devpilot generate ${specFilePath}`);
       console.log(`    3. Open with your coding agent\n`);
     } catch (error) {
       console.error(`\n  ❌ ${(error as Error).message}\n`);
@@ -372,7 +372,7 @@ program
 
           if (!github.isAuthenticated()) {
             console.error("  ❌ GitHub not authenticated. Set GITHUB_TOKEN env variable.");
-            console.log("  💡 Run: specforge config --github-token <your-token>\n");
+            console.log("  💡 Run: devpilot config --github-token <your-token>\n");
             process.exit(1);
           }
 
@@ -546,7 +546,7 @@ program
       const github = new GitHubIntegration();
       if (!github.isAuthenticated()) {
         console.error("\n  ❌ GitHub not authenticated.");
-        console.log("  💡 Set GITHUB_TOKEN env variable or run: specforge config --github-token <token>\n");
+        console.log("  💡 Set GITHUB_TOKEN env variable or run: devpilot config --github-token <token>\n");
         process.exit(1);
       }
 
@@ -633,7 +633,7 @@ program
   .argument("<file>", "Path to spec file")
   .option("-f, --framework <framework>", "Framework", "react")
   .option("-a, --agents <agents...>", "Agents", ["claude-code"])
-  .option("--save", "Save roadmap to .specforge/roadmap.json", false)
+  .option("--save", "Save roadmap to .devpilot/roadmap.json", false)
   .action((file: string, options: { framework: string; agents: string[]; save: boolean }) => {
     try {
       console.log("\n  🗺️  DevPilot - Roadmap Generator\n");
@@ -675,7 +675,7 @@ program
       }
 
       if (options.save) {
-        const outDir = path.join(process.cwd(), ".specforge");
+        const outDir = path.join(process.cwd(), ".devpilot");
         if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
         const outPath = path.join(outDir, "roadmap.json");
         fs.writeFileSync(outPath, JSON.stringify(roadmap, null, 2));
@@ -696,7 +696,7 @@ program
   .option("-f, --framework <framework>", "Framework", "react")
   .option("-a, --agents <agents...>", "Agents", ["claude-code"])
   .option("-o, --output <dir>", "Output directory", "./projects")
-  .option("--save", "Save all artifacts to .specforge/", false)
+  .option("--save", "Save all artifacts to .devpilot/", false)
   .option("-v, --verbose", "Verbose output", false)
   .action(async (file: string, options: { framework: string; agents: string[]; output: string; save: boolean; verbose: boolean }) => {
     try {
@@ -758,12 +758,12 @@ program
       const executionPlan = orchestrator.getExecutionPlan(bundles);
 
       if (options.save) {
-        const outDir = path.join(process.cwd(), ".specforge");
+        const outDir = path.join(process.cwd(), ".devpilot");
         if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
         fs.writeFileSync(path.join(outDir, "roadmap.json"), JSON.stringify(roadmap, null, 2));
         fs.writeFileSync(path.join(outDir, "execution-plan.md"), executionPlan);
         fs.writeFileSync(path.join(outDir, "prompts.json"), JSON.stringify(bundles, null, 2));
-        console.log(`  ✅ Saved to .specforge/\n`);
+        console.log(`  ✅ Saved to .devpilot/\n`);
       }
 
       // Print execution plan

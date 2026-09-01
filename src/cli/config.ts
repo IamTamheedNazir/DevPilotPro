@@ -5,7 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { CLIConfig } from "./types.js";
 
-const CONFIG_FILE = ".specforge.json";
+const CONFIG_FILE = ".devpilot.json";
 const HOME_DIR = process.env.HOME || process.env.USERPROFILE || ".";
 
 function getConfigPath(): string {

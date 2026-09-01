@@ -30,7 +30,7 @@ export class GitHubIntegration {
   ): Promise<{ url: string; cloneUrl: string }> {
     if (!this.octokit) {
       throw new Error(
-        "GitHub not authenticated. Set GITHUB_TOKEN environment variable or run: specforge config --github-token <token>"
+        "GitHub not authenticated. Set GITHUB_TOKEN environment variable or run: devpilot config --github-token <token>"
       );
     }
 

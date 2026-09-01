@@ -78,7 +78,7 @@ export class AISpecGenerator {
     if (!this.apiKey) {
       throw new Error(
         "OpenAI API key not found. Set OPENAI_API_KEY env variable or run:\n" +
-          "  specforge config --openai-key <your-key>"
+          "  devpilot config --openai-key <your-key>"
       );
     }
   }
