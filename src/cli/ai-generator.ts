@@ -1,4 +1,4 @@
-// SpecForge CLI - AI Spec Generator
+// DevPilot CLI - AI Spec Generator
 // Generates detailed specs from a simple prompt using OpenAI API
 
 import * as fs from "fs";

@@ -1,4 +1,4 @@
-// SpecForge CLI - Type Definitions
+// DevPilot CLI - Type Definitions
 
 export interface SpecConfig {
   name: string;

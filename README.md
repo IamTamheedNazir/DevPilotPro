@@ -1,14 +1,14 @@
-# SpecForge
+# DevPilot
 
 **Turn specs into full projects with coding agents.**
 
-SpecForge is a powerful CLI tool that takes your project specification and generates a complete, production-ready project scaffold — then hands it off to your favorite coding agent (Claude Code, Codex, Cursor, Windsurf, Copilot, Aider) to build the actual code.
+DevPilot is a powerful CLI tool that takes your project specification and generates a complete, production-ready project scaffold — then hands it off to your favorite coding agent (Claude Code, Codex, Cursor, Windsurf, Copilot, Aider) to build the actual code.
 
 More powerful than [spec-kit](https://github.com/github/spec-kit). One command to go from spec → project → code.
 
-## Why SpecForge?
+## Why DevPilot?
 
-| Feature | spec-kit | SpecForge |
+| Feature | spec-kit | DevPilot |
 |---------|----------|-----------|
 | Spec format | Markdown only | Markdown + YAML |
 | AI spec generation | None | Generate specs from natural language |
@@ -26,16 +26,16 @@ More powerful than [spec-kit](https://github.com/github/spec-kit). One command t
 
 ```bash
 # Install globally
-npm install -g specforge
+npm install -g devpilot
 
 # Or use without installing
-npx specforge
+npx devpilot
 ```
 
 ### Quick Start (Interactive Wizard)
 
 ```bash
-specforge quick
+devpilot quick
 ```
 
 Describe your project in plain English → get an AI-generated spec → generate the project. All in one interactive session.
@@ -44,16 +44,16 @@ Describe your project in plain English → get an AI-generated spec → generate
 
 ```bash
 # Offline mode (no API key needed)
-specforge create "A task management app with real-time collaboration"
+devpilot create "A task management app with real-time collaboration"
 
 # AI-powered mode (needs OPENAI_API_KEY)
-specforge create "A social network for developers" --ai
+devpilot create "A social network for developers" --ai
 ```
 
 ### Or Create a Template Spec
 
 ```bash
-specforge init my-project
+devpilot init my-project
 ```
 
 This creates a `my-project.spec.md` file with a template. Edit it with your project details.
@@ -62,13 +62,13 @@ This creates a `my-project.spec.md` file with a template. Edit it with your proj
 
 ```bash
 # Non-interactive
-specforge generate my-project.spec.md --framework react --agents claude-code codex
+devpilot generate my-project.spec.md --framework react --agents claude-code codex
 
 # Interactive mode (prompts for framework, agents, etc.)
-specforge generate my-project.spec.md --interactive
+devpilot generate my-project.spec.md --interactive
 
 # Or just run generate in a directory with spec files
-specforge generate
+devpilot generate
 ```
 
 ### Open with Your Coding Agent
@@ -82,71 +82,71 @@ cd projects/my-project
 
 ## Commands
 
-### `specforge quick`
+### `devpilot quick`
 
 Interactive wizard: describe project → AI generates spec → generate project.
 
 ```bash
-specforge quick
+devpilot quick
 ```
 
-### `specforge create [prompt]`
+### `devpilot create [prompt]`
 
 Generate a spec from a natural language description.
 
 ```bash
 # Offline (no API key)
-specforge create "A task management app with drag-and-drop"
+devpilot create "A task management app with drag-and-drop"
 
-# AI-powered (needs OPENAI_API_KEY or specforge config --openai-key)
-specforge create "A social network for developers" --ai
+# AI-powered (needs OPENAI_API_KEY or devpilot config --openai-key)
+devpilot create "A social network for developers" --ai
 ```
 
-### `specforge init [name]`
+### `devpilot init [name]`
 
 Create a new spec file from a template.
 
 ```bash
-specforge init my-app                    # Creates my-app.spec.md
-specforge init my-app --format yaml      # Creates my-app.spec.yaml
-specforge init my-app --interactive      # Guided spec creation
+devpilot init my-app                    # Creates my-app.spec.md
+devpilot init my-app --format yaml      # Creates my-app.spec.yaml
+devpilot init my-app --interactive      # Guided spec creation
 ```
 
-### `specforge validate <file>`
+### `devpilot validate <file>`
 
 Validate a spec file for completeness and correctness.
 
 ```bash
-specforge validate my-app.spec.md
+devpilot validate my-app.spec.md
 ```
 
-### `specforge generate <file> [options]`
+### `devpilot generate <file> [options]`
 
 Generate a project from a spec file.
 
 ```bash
 # Basic generation
-specforge generate my-app.spec.md
+devpilot generate my-app.spec.md
 
 # Interactive mode (prompts for framework, agents, etc.)
-specforge generate my-app.spec.md --interactive
+devpilot generate my-app.spec.md --interactive
 
 # With specific framework and agents
-specforge generate my-app.spec.md \
+devpilot generate my-app.spec.md \
   --framework nextjs \
   --language typescript \
   --agents claude-code codex cursor
 
 # Dry run (preview without writing)
-specforge generate my-app.spec.md --dry-run
+devpilot generate my-app.spec.md --dry-run
 
 # With GitHub integration
-specforge generate my-app.spec.md \
+devpilot generate my-app.spec.md \
   --github myuser/myrepo \
   --private
 
 # Verbose output
-specforge generate my-app.spec.md --verbose
+devpilot generate my-app.spec.md --verbose
 ```
 
 **Options:**
@@ -160,41 +160,41 @@ specforge generate my-app.spec.md --verbose
 - `--dry-run` — Preview without writing files
 - `-v, --verbose` — Show detailed output
 
-### `specforge agents`
+### `devpilot agents`
 
 List all supported coding agents and their config files.
 
 ```bash
-specforge agents
+devpilot agents
 ```
 
-### `specforge push <dir> <repo>`
+### `devpilot push <dir> <repo>`
 
 Push an existing project to GitHub.
 
 ```bash
-specforge push ./my-project myuser/myrepo
-specforge push ./my-project https://github.com/myuser/myrepo --private
+devpilot push ./my-project myuser/myrepo
+devpilot push ./my-project https://github.com/myuser/myrepo --private
 ```
 
-### `specforge config`
+### `devpilot config`
 
-View or update SpecForge configuration.
+View or update DevPilot configuration.
 
 ```bash
-specforge config --list                    # Show current config
-specforge config --framework nextjs        # Set default framework
-specforge config --agents claude-code codex  # Set default agents
-specforge config --github-token ghp_xxx   # Set GitHub token
+devpilot config --list                    # Show current config
+devpilot config --framework nextjs        # Set default framework
+devpilot config --agents claude-code codex  # Set default agents
+devpilot config --github-token ghp_xxx   # Set GitHub token
 ```
 
-### `specforge parse <file>`
+### `devpilot parse <file>`
 
 Parse and display a spec file's structure.
 
 ```bash
-specforge parse my-app.spec.md           # Human-readable output
-specforge parse my-app.spec.md --json    # JSON output
+devpilot parse my-app.spec.md           # Human-readable output
+devpilot parse my-app.spec.md --json    # JSON output
 ```
 
 ## Spec Format
@@ -287,7 +287,7 @@ constraints:
 
 ## Coding Agent Integration
 
-SpecForge generates agent-specific instruction files so your coding agent knows exactly what to build:
+DevPilot generates agent-specific instruction files so your coding agent knows exactly what to build:
 
 | Agent | Config File | How it Works |
 |-------|------------|--------------|
@@ -302,24 +302,24 @@ Each agent gets the full spec context, feature breakdown, requirements, constrai
 
 ## GitHub Integration
 
-SpecForge can create GitHub repos and push your generated project:
+DevPilot can create GitHub repos and push your generated project:
 
 ```bash
 # Set your GitHub token
-specforge config --github-token ghp_your_token_here
+devpilot config --github-token ghp_your_token_here
 
 # Generate and push in one command
-specforge generate my-app.spec.md --github myuser/myrepo
+devpilot generate my-app.spec.md --github myuser/myrepo
 
 # Or push later
-specforge push ./projects/my-app myuser/myrepo
+devpilot push ./projects/my-app myuser/myrepo
 ```
 
 ## Development
 
 ```bash
-git clone https://github.com/yourusername/specforge.git
-cd specforge
+git clone https://github.com/yourusername/devpilot.git
+cd devpilot
 npm install
 npm run dev -- init my-test
 ```

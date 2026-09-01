@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// SpecForge CLI - Main Entry Point
+// DevPilot CLI - Main Entry Point
 // A powerful spec-driven development tool that works with coding agents
 
 import { Command } from "commander";
@@ -27,8 +27,8 @@ const VERSION = "1.0.0";
 const program = new Command();
 
 program
-  .name("specforge")
-  .description("SpecForge - Turn specs into full projects with coding agents")
+  .name("devpilot")
+  .description("DevPilot - Turn specs into full projects with coding agents")
   .version(VERSION);
 
 // ─── INIT ────────────────────────────────────────────────────────────────
@@ -293,7 +293,7 @@ program
           process.exit(1);
         }
 
-        console.log("\n  🔧 SpecForge - Generating Project\n");
+        console.log("\n  🔧 DevPilot - Generating Project\n");
 
         // Parse spec
         console.log(`  📖 Parsing spec: ${file}`);
@@ -472,7 +472,7 @@ program
 
 program
   .command("config")
-  .description("View or update SpecForge configuration")
+  .description("View or update DevPilot configuration")
   .option("--list", "Show current configuration")
   .option("--framework <framework>", "Set default framework")
   .option("--language <language>", "Set default language")
@@ -492,7 +492,7 @@ program
     }) => {
       if (options.list || (!options.framework && !options.language && !options.agents && !options.output && !options.githubToken && !options.openaiKey)) {
         const config = loadConfig();
-        console.log("\n  ⚙️  SpecForge Configuration\n");
+        console.log("\n  ⚙️  DevPilot Configuration\n");
         console.log(`    Framework:    ${config.defaultFramework}`);
         console.log(`    Language:     ${config.defaultLanguage}`);
         console.log(`    Agents:       ${config.defaultAgents.join(", ")}`);
@@ -523,7 +523,7 @@ program
   .description("Push an existing project to GitHub")
   .argument("<dir>", "Project directory to push")
   .argument("<repo>", "GitHub repo (owner/repo or URL)")
-  .option("-m, --message <msg>", "Commit message", "Project from SpecForge")
+  .option("-m, --message <msg>", "Commit message", "Project from DevPilot")
   .option("--private", "Make repo private", false)
   .action(
     async (
@@ -563,7 +563,7 @@ program
         const repoInfo = await github.createRepo(
           config.owner,
           config.repo,
-          `Project from SpecForge`,
+          `Project from DevPilot`,
           config.private
         );
         console.log(`  ✅ Created repo: ${repoInfo.url}`);
@@ -636,7 +636,7 @@ program
   .option("--save", "Save roadmap to .specforge/roadmap.json", false)
   .action((file: string, options: { framework: string; agents: string[]; save: boolean }) => {
     try {
-      console.log("\n  🗺️  SpecForge - Roadmap Generator\n");
+      console.log("\n  🗺️  DevPilot - Roadmap Generator\n");
 
       const parser = new SpecParser(file);
       const spec = parser.parse();
@@ -700,7 +700,7 @@ program
   .option("-v, --verbose", "Verbose output", false)
   .action(async (file: string, options: { framework: string; agents: string[]; output: string; save: boolean; verbose: boolean }) => {
     try {
-      console.log("\n  🧠 SpecForge - Orchestration Engine\n");
+      console.log("\n  🧠 DevPilot - Orchestration Engine\n");
       console.log("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
       // Step 1: Parse spec

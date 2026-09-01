@@ -1,4 +1,4 @@
-// SpecForge CLI - Agent Orchestrator
+// DevPilot CLI - Agent Orchestrator
 // Assigns tasks to agents and generates ordered execution prompts
 
 import {
@@ -96,7 +96,7 @@ export class AgentOrchestrator {
    */
   getExecutionPlan(bundles: AgentPromptBundle[]): string {
     const lines: string[] = [];
-    lines.push("# SpecForge Execution Plan\n");
+    lines.push("# DevPilot Execution Plan\n");
     lines.push(
       `Project: ${this.roadmap.specName}`
     );

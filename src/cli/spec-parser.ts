@@ -1,4 +1,4 @@
-// SpecForge CLI - Spec Parser & Validator
+// DevPilot CLI - Spec Parser & Validator
 // Parses markdown/YAML spec files into structured data
 
 import * as fs from "fs";

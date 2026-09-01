@@ -1,4 +1,4 @@
-// SpecForge CLI - GitHub Integration
+// DevPilot CLI - GitHub Integration
 // Creates repos and pushes generated projects to GitHub
 
 import simpleGit, { SimpleGit } from "simple-git";
@@ -58,7 +58,7 @@ export class GitHubIntegration {
   async pushProject(
     projectPath: string,
     config: GitHubConfig,
-    commitMessage: string = "Initial commit from SpecForge"
+    commitMessage: string = "Initial commit from DevPilot"
   ): Promise<{ success: boolean; url: string }> {
     const git: SimpleGit = simpleGit(projectPath);
 

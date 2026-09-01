@@ -1,4 +1,4 @@
-// SpecForge CLI - Configuration Manager
+// DevPilot CLI - Configuration Manager
 // Handles reading/writing CLI configuration
 
 import * as fs from "fs";

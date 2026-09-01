@@ -1,4 +1,4 @@
-// SpecForge CLI - Roadmap Engine
+// DevPilot CLI - Roadmap Engine
 // Decomposes specs into phased roadmaps with ordered mini-tasks
 
 import {

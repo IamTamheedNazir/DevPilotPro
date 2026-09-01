@@ -1,10 +1,10 @@
 {
-  "name": "specforge",
+  "name": "devpilot",
   "version": "1.0.0",
-  "description": "Turn specs into full projects with coding agents. More powerful than spec-kit.",
+  "description": "AI-powered spec-driven development. Turn ideas into roadmaps, tasks, and working code with coding agents.",
   "type": "module",
   "bin": {
-    "specforge": "./bin/specforge.js"
+    "devpilot": "./bin/devpilot.js"
   },
   "main": "./dist/cli/index.js",
   "scripts": {

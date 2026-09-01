@@ -1,4 +1,4 @@
-// SpecForge CLI - Project Generator
+// DevPilot CLI - Project Generator
 // Generates project scaffolding from spec files, with coding agent integration
 
 import * as fs from "fs";

@@ -1,4 +1,4 @@
-// SpecForge CLI - Interactive Mode
+// DevPilot CLI - Interactive Mode
 // Guided prompts for spec creation and project generation
 
 import inquirer from "inquirer";
@@ -57,7 +57,7 @@ const AGENT_CHOICES = [
 ];
 
 export async function promptForSpecCreation(): Promise<InteractiveSpecAnswers> {
-  console.log("\n  🔮 SpecForge Interactive Mode - Create Spec\n");
+  console.log("\n  🔮 DevPilot Interactive Mode - Create Spec\n");
 
   const answers = await inquirer.prompt<InteractiveSpecAnswers>([
     {
@@ -122,7 +122,7 @@ export async function promptForSpecCreation(): Promise<InteractiveSpecAnswers> {
 }
 
 export async function promptForGeneration(): Promise<InteractiveGenerateAnswers> {
-  console.log("\n  🔮 SpecForge Interactive Mode - Generate Project\n");
+  console.log("\n  🔮 DevPilot Interactive Mode - Generate Project\n");
 
   const answers = await inquirer.prompt<InteractiveGenerateAnswers>([
     {
@@ -199,7 +199,7 @@ export async function promptForQuickStart(): Promise<{
   framework: Framework;
   agents: Agent[];
 }> {
-  console.log("\n  ⚡ SpecForge Quick Start\n");
+  console.log("\n  ⚡ DevPilot Quick Start\n");
   console.log("  Describe your project in a few words and we'll generate everything.\n");
 
   const answers = await inquirer.prompt([
@@ -256,7 +256,7 @@ export async function promptForGitHubPush(): Promise<{
       type: "input",
       name: "message",
       message: "Commit message:",
-      default: "Initial commit from SpecForge",
+      default: "Initial commit from DevPilot",
     },
   ]);
 }
