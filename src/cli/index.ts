@@ -18,7 +18,9 @@ import {
   promptForQuickStart,
   promptForGitHubPush,
 } from "./interactive.js";
-import { Framework, Language, Agent, ProjectConfig, GenerationOptions } from "./types.js";
+import { RoadmapGenerator } from "./roadmap.js";
+import { AgentOrchestrator } from "./orchestrator.js";
+import { Framework, Language, Agent, ProjectConfig, GenerationOptions, Roadmap } from "./types.js";
 
 const VERSION = "1.0.0";
 
@@ -617,6 +619,176 @@ program
         }
         console.log("");
       }
+    } catch (error) {
+      console.error(`\n  ❌ ${(error as Error).message}\n`);
+      process.exit(1);
+    }
+  });
+
+// ─── ROADMAP ────────────────────────────────────────────────────────────
+
+program
+  .command("roadmap")
+  .description("Generate a development roadmap from a spec file")
+  .argument("<file>", "Path to spec file")
+  .option("-f, --framework <framework>", "Framework", "react")
+  .option("-a, --agents <agents...>", "Agents", ["claude-code"])
+  .option("--save", "Save roadmap to .specforge/roadmap.json", false)
+  .action((file: string, options: { framework: string; agents: string[]; save: boolean }) => {
+    try {
+      console.log("\n  🗺️  SpecForge - Roadmap Generator\n");
+
+      const parser = new SpecParser(file);
+      const spec = parser.parse();
+      const validation = parser.validate(spec);
+
+      if (!validation.valid) {
+        console.error("  ❌ Spec validation failed:");
+        for (const err of validation.errors) {
+          console.error(`    - [${err.field}] ${err.message}`);
+        }
+        process.exit(1);
+      }
+
+      const generator = new RoadmapGenerator(
+        spec,
+        options.framework as Framework,
+        options.agents as Agent[]
+      );
+      const roadmap = generator.generate();
+
+      console.log(`  📖 Spec: ${spec.metadata.name}`);
+      console.log(`  🎯 Complexity: ${roadmap.estimatedComplexity}`);
+      console.log(`  📋 Total tasks: ${roadmap.totalTasks}`);
+      console.log(`  📊 Phases: ${roadmap.phases.length}\n`);
+
+      for (const phase of roadmap.phases) {
+        console.log(`  Phase ${phase.order + 1}: ${phase.name}`);
+        console.log(`    ${phase.description}`);
+        console.log(`    Tasks: ${phase.tasks.length}`);
+        for (const task of phase.tasks) {
+          const dep = task.dependencies.length > 0 ? ` (depends: ${task.dependencies.length})` : "";
+          console.log(`      ⬜ ${task.title} [${task.estimatedEffort}]${dep}`);
+        }
+        console.log(`    Gate: ${phase.gate.description}`);
+        console.log("");
+      }
+
+      if (options.save) {
+        const outDir = path.join(process.cwd(), ".specforge");
+        if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+        const outPath = path.join(outDir, "roadmap.json");
+        fs.writeFileSync(outPath, JSON.stringify(roadmap, null, 2));
+        console.log(`  ✅ Roadmap saved to: ${outPath}\n`);
+      }
+    } catch (error) {
+      console.error(`\n  ❌ ${(error as Error).message}\n`);
+      process.exit(1);
+    }
+  });
+
+// ─── ORCHESTRATE ────────────────────────────────────────────────────────
+
+program
+  .command("orchestrate")
+  .description("Full pipeline: spec → roadmap → tasks → agent prompts → project")
+  .argument("<file>", "Path to spec file")
+  .option("-f, --framework <framework>", "Framework", "react")
+  .option("-a, --agents <agents...>", "Agents", ["claude-code"])
+  .option("-o, --output <dir>", "Output directory", "./projects")
+  .option("--save", "Save all artifacts to .specforge/", false)
+  .option("-v, --verbose", "Verbose output", false)
+  .action(async (file: string, options: { framework: string; agents: string[]; output: string; save: boolean; verbose: boolean }) => {
+    try {
+      console.log("\n  🧠 SpecForge - Orchestration Engine\n");
+      console.log("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+      // Step 1: Parse spec
+      console.log("  Step 1/5: Parsing spec...");
+      const parser = new SpecParser(file);
+      const spec = parser.parse();
+      const validation = parser.validate(spec);
+
+      if (!validation.valid) {
+        console.error("  ❌ Spec validation failed:");
+        for (const err of validation.errors) {
+          console.error(`    - [${err.field}] ${err.message}`);
+        }
+        process.exit(1);
+      }
+      console.log(`  ✅ Parsed: ${spec.metadata.name} v${spec.metadata.version}\n`);
+
+      // Step 2: Generate roadmap
+      console.log("  Step 2/5: Generating roadmap...");
+      const roadmapGen = new RoadmapGenerator(
+        spec,
+        options.framework as Framework,
+        options.agents as Agent[]
+      );
+      const roadmap = roadmapGen.generate();
+      console.log(`  ✅ Roadmap: ${roadmap.phases.length} phases, ${roadmap.totalTasks} tasks (${roadmap.estimatedComplexity})\n`);
+
+      // Step 3: Generate project scaffold
+      console.log("  Step 3/5: Generating project scaffold...");
+      const projectConfig: ProjectConfig = {
+        name: spec.metadata.name,
+        description: spec.metadata.description || spec.overview,
+        framework: options.framework as Framework,
+        language: (options.framework === "django" || options.framework === "flask" ? "python" : options.framework === "go" ? "go" : options.framework === "rust" ? "rust" : "typescript") as Language,
+        features: spec.sections.map((s) => s.title),
+        agents: options.agents as Agent[],
+      };
+      const projectGen = new ProjectGenerator(spec, projectConfig, options.output);
+      const project = projectGen.generate();
+      console.log(`  ✅ Scaffolded: ${project.files.length} files at ${project.path}\n`);
+
+      // Step 4: Assign agents and generate prompts
+      console.log("  Step 4/5: Orchestrating agents...");
+      const orchestrator = new AgentOrchestrator(
+        roadmap,
+        options.agents as Agent[],
+        options.framework as Framework,
+        spec
+      );
+      const bundles = orchestrator.orchestrate();
+      console.log(`  ✅ Generated ${bundles.length} agent prompts\n`);
+
+      // Step 5: Write execution plan
+      console.log("  Step 5/5: Writing execution plan...");
+      const executionPlan = orchestrator.getExecutionPlan(bundles);
+
+      if (options.save) {
+        const outDir = path.join(process.cwd(), ".specforge");
+        if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+        fs.writeFileSync(path.join(outDir, "roadmap.json"), JSON.stringify(roadmap, null, 2));
+        fs.writeFileSync(path.join(outDir, "execution-plan.md"), executionPlan);
+        fs.writeFileSync(path.join(outDir, "prompts.json"), JSON.stringify(bundles, null, 2));
+        console.log(`  ✅ Saved to .specforge/\n`);
+      }
+
+      // Print execution plan
+      console.log(executionPlan);
+
+      // Print agent-specific instructions
+      console.log("\n  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("  🤖 Agent Assignment Summary\n");
+
+      const agentCounts: Record<string, number> = {};
+      for (const b of bundles) {
+        agentCounts[b.agent] = (agentCounts[b.agent] || 0) + 1;
+      }
+      for (const [agent, count] of Object.entries(agentCounts)) {
+        console.log(`    ${agent}: ${count} tasks assigned`);
+      }
+
+      console.log("\n  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("  ✨ Orchestration complete!\n");
+      console.log("  The project scaffold is ready. Hand off tasks to your");
+      console.log("  coding agents in order. Each agent prompt includes:");
+      console.log("    - Full context (phase, dependencies, files)");
+      console.log("    - Implementation requirements");
+      console.log("    - Acceptance criteria");
+      console.log("    - Quality audit checks\n");
     } catch (error) {
       console.error(`\n  ❌ ${(error as Error).message}\n`);
       process.exit(1);
