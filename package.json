@@ -7,13 +7,19 @@
     "devpilot": "./bin/devpilot.js"
   },
   "main": "./dist/cli/index.js",
+  "files": [
+    "dist",
+    "bin"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
     "start": "node dist/cli/index.js",
+    "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "node --test src/**/*.test.ts"
+    "test": "node --test src/**/*.test.ts",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "spec",
@@ -32,7 +38,6 @@
   "license": "MIT",
   "dependencies": {
     "@octokit/rest": "^21.0.0",
-    "@vly-ai/integrations": "^0.6.13",
     "chalk": "^4.1.2",
     "commander": "^12.0.0",
     "glob": "^10.0.0",

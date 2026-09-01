@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc -b --noEmit
+
+      - name: Run CLI help
+        run: npx tsx src/cli/index.ts --help
+
+      - name: Test init command
+        run: |
+          cd /tmp
+          npx tsx $GITHUB_WORKSPACE/src/cli/index.ts init test-project
+          test -f test-project.spec.md
+
+      - name: Test validate command
+        run: |
+          cd /tmp
+          npx tsx $GITHUB_WORKSPACE/src/cli/index.ts validate test-project.spec.md
+
+      - name: Test parse command
+        run: |
+          cd /tmp
+          npx tsx $GITHUB_WORKSPACE/src/cli/index.ts parse test-project.spec.md
+
+      - name: Test create command (offline)
+        run: |
+          cd /tmp
+          npx tsx $GITHUB_WORKSPACE/src/cli/index.ts create "A simple todo app" --no-ai
+          test -f a-simple-todo-app.spec.md
+
+      - name: Test roadmap command
+        run: |
+          cd /tmp
+          npx tsx $GITHUB_WORKSPACE/src/cli/index.ts roadmap test-project.spec.md --framework react
+
+      - name: Test generate command
+        run: |
+          cd /tmp
+          npx tsx $GITHUB_WORKSPACE/src/cli/index.ts generate test-project.spec.md --framework react --agents claude-code --verbose
+          test -d projects/test-project
+          test -f projects/test-project/package.json
+
+      - name: Test orchestrate command
+        run: |
+          cd /tmp
+          npx tsx $GITHUB_WORKSPACE/src/cli/index.ts orchestrate test-project.spec.md --framework react --agents claude-code codex
+          test -d projects/test-project
+
+      - name: Test agents command
+        run: npx tsx $GITHUB_WORKSPACE/src/cli/index.ts agents
+
+      - name: Test config command
+        run: npx tsx $GITHUB_WORKSPACE/src/cli/index.ts config --list
