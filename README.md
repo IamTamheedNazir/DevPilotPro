@@ -1,28 +1,58 @@
 # DevPilot
 
-**Turn specs into full projects with coding agents.**
+**The vibe coding copilot. Describe what you want → get a plan → build it right.**
 
-DevPilot is a powerful CLI tool that takes your project specification and generates a complete, production-ready project scaffold — then hands it off to your favorite coding agent (Claude Code, Codex, Cursor, Windsurf, Copilot, Aider) to build the actual code.
+You're a vibe coder. You describe projects in natural language, hand them to coding agents, and ship fast. But there's a gap: agents don't understand the **order** of things, the **dependencies**, or the **quality checks** needed to build a real product.
 
-More powerful than [spec-kit](https://github.com/github/spec-kit). One command to go from spec → project → code.
+DevPilot fills that gap.
 
-## Why DevPilot?
+## The Problem
 
-| Feature | spec-kit | DevPilot |
-|---------|----------|-----------|
-| Spec format | Markdown only | Markdown + YAML |
-| AI spec generation | None | Generate specs from natural language |
-| Interactive mode | None | Guided prompts for everything |
-| Multi-agent support | None | Claude Code, Codex, Cursor, Windsurf, Copilot, Aider |
-| GitHub integration | Manual | Auto-create repo + push |
-| Framework scaffolding | Basic | React, Next.js, Vue, Svelte, Express, Fastify, Django, Flask, Go, Rust |
-| Agent instructions | None | Auto-generated per agent |
-| Spec validation | None | Full validation with warnings |
-| Config persistence | None | Saves your defaults |
+Vibe coding is powerful, but:
+- You describe a project and the agent builds random files in random order
+- There's no roadmap — no idea what to build first, what depends on what
+- No audit strategy — no way to know if the code is actually good
+- Agents don't know the full context — they build pieces without understanding the whole
 
-## Quick Start
+## The Solution
 
-### Install
+DevPilot takes your natural language idea and turns it into:
+
+```
+Your Idea → Spec → Roadmap → Mini-Tasks → Audit Strategy → Agent Prompts
+```
+
+Then your coding agents build it in the right order, with the right context, and quality checks at every step.
+
+## How It Works
+
+### 1. You describe your project
+```bash
+devpilot create "A real-time chat app with rooms, reactions, file sharing"
+```
+
+### 2. DevPilot generates a spec and roadmap
+```
+📋 16 tasks across 6 phases
+🏗️ Scaffold → Schema → Auth → API → UI → Tests
+🔍 Audit strategy with automated + manual checks
+🤖 Agent prompts with full context and acceptance criteria
+```
+
+### 3. Hand off to your coding agent
+```bash
+cd projects/my-chat-app
+# Claude Code reads .claude/CLAUDE.md and knows exactly what to build
+# Codex reads CODEX.md and follows the execution plan
+# Cursor reads .cursor/rules and builds components in order
+```
+
+### 4. Quality at every step
+Each phase has a **gate** — automated checks (lint, types) and manual checks (security, a11y) that must pass before moving to the next phase.
+
+## Install
+
+Works on **Windows**, **Mac**, and **Linux**.
 
 ```bash
 # Install globally
@@ -32,287 +62,138 @@ npm install -g devpilot
 npx devpilot
 ```
 
-### Quick Start (Interactive Wizard)
+No compilation needed. It's a Node.js CLI that runs anywhere Node.js runs.
+
+## Quick Start
 
 ```bash
+# One command: describe → plan → build
 devpilot quick
-```
 
-Describe your project in plain English → get an AI-generated spec → generate the project. All in one interactive session.
-
-### Create a Spec from a Prompt
-
-```bash
-# Offline mode (no API key needed)
-devpilot create "A task management app with real-time collaboration"
-
-# AI-powered mode (needs OPENAI_API_KEY)
-devpilot create "A social network for developers" --ai
-```
-
-### Or Create a Template Spec
-
-```bash
-devpilot init my-project
-```
-
-This creates a `my-project.spec.md` file with a template. Edit it with your project details.
-
-### Generate a Project
-
-```bash
-# Non-interactive
-devpilot generate my-project.spec.md --framework react --agents claude-code codex
-
-# Interactive mode (prompts for framework, agents, etc.)
-devpilot generate my-project.spec.md --interactive
-
-# Or just run generate in a directory with spec files
-devpilot generate
-```
-
-### Open with Your Coding Agent
-
-```bash
-cd projects/my-project
-# Claude Code reads .claude/CLAUDE.md automatically
-# Codex reads CODEX.md automatically
-# Cursor reads .cursor/rules automatically
+# Or step by step:
+devpilot create "Your project idea here"
+devpilot roadmap my-project.spec.md
+devpilot orchestrate my-project.spec.md --framework react --agents claude-code
 ```
 
 ## Commands
 
-### `devpilot quick`
+| Command | What it does |
+|---------|-------------|
+| `devpilot quick` | Full interactive wizard — describe it, plan it, build it |
+| `devpilot create <prompt>` | Generate a spec from natural language |
+| `devpilot init` | Create a spec template to fill in |
+| `devpilot validate` | Check your spec is complete |
+| `devpilot roadmap` | Generate a phased roadmap with dependencies |
+| `devpilot orchestrate` | Full pipeline: spec → roadmap → tasks → agent prompts |
+| `devpilot generate` | Scaffold the project with framework files |
+| `devpilot agents` | List supported coding agents |
+| `devpilot push` | Push to GitHub |
 
-Interactive wizard: describe project → AI generates spec → generate project.
+## What Makes This Different
 
-```bash
-devpilot quick
+### Without DevPilot
+```
+You: "Build me a chat app"
+Agent: *creates 50 files in random order, no tests, no structure*
+Result: Broken code that doesn't work together
 ```
 
-### `devpilot create [prompt]`
+### With DevPilot
+```
+You: "Build me a chat app"
+DevPilot: "Here's the roadmap, 16 tasks in 6 phases with audit checks"
+Agent: *builds scaffold, then schema, then auth, then API, then UI, then tests*
+Result: Working product with quality at every step
+```
 
-Generate a spec from a natural language description.
+## Roadmap Engine
+
+DevPilot automatically decomposes your spec into phases:
+
+```
+Phase 1: Project Scaffolding     → Project compiles, dev server starts
+Phase 2: Data Layer & Schema     → Models defined, migrations run
+Phase 3: Authentication          → Login works, protected routes work
+Phase 4: API Layer               → Endpoints respond correctly
+Phase 5: UI & Frontend           → Pages render, responsive layout
+Phase 6: Testing & Quality       → All tests pass, coverage > 70%
+Phase 7: Documentation           → README complete, build succeeds
+```
+
+Each phase has:
+- **Tasks** with dependencies (what must be done first)
+- **Effort estimates** (tiny, small, medium, large)
+- **Priority levels** (critical, high, medium, low)
+- **Audit checks** (automated: lint, types; manual: security, a11y)
+- **Phase gates** (quality bar that must be met before proceeding)
+
+## Agent Orchestration
+
+DevPilot assigns tasks to agents based on their strengths:
+
+| Agent | Best For |
+|-------|----------|
+| **Claude Code** | Full-stack, all task types |
+| **Codex** | Scaffolding, schema, API, config |
+| **Cursor** | UI, refactoring, tests |
+| **Windsurf** | UI, API, refactoring |
+| **Copilot** | Scaffolding, API, tests |
+| **Aider** | Refactoring, API, tests |
+
+Each agent gets a prompt with:
+- Full project context (phase, framework, type, priority)
+- Dependencies (what's already built)
+- Files to create/modify
+- Acceptance criteria (checklist)
+- Quality checks (automated + manual)
+
+## Framework Support
+
+DevPilot scaffolds projects for any major framework:
+
+| Framework | Language | Scaffolding |
+|-----------|----------|-------------|
+| React (Vite) | TypeScript | package.json, tsconfig, index.html |
+| Next.js | TypeScript | App Router, package.json |
+| Vue 3 | TypeScript | Vite, package.json |
+| SvelteKit | TypeScript | SvelteKit config, routes |
+| Express | TypeScript | Server, routes |
+| Fastify | TypeScript | Server, routes |
+| Django | Python | settings, manage.py, urls |
+| Flask | Python | app.py, routes |
+| Go | Go | go.mod, main.go |
+| Rust | Rust | Cargo.toml, main.rs |
+| Vanilla | JS/HTML | index.html |
+
+## AI-Powered Spec Generation
 
 ```bash
-# Offline (no API key)
-devpilot create "A task management app with drag-and-drop"
+# Offline (no API key needed) — generates a structured spec from your description
+devpilot create "A social network for developers with profiles, repos, and follows"
 
-# AI-powered (needs OPENAI_API_KEY or devpilot config --openai-key)
+# AI-powered (needs OpenAI API key) — generates a detailed spec with AI
 devpilot create "A social network for developers" --ai
 ```
 
-### `devpilot init [name]`
-
-Create a new spec file from a template.
+## GitHub Integration
 
 ```bash
-devpilot init my-app                    # Creates my-app.spec.md
-devpilot init my-app --format yaml      # Creates my-app.spec.yaml
-devpilot init my-app --interactive      # Guided spec creation
+# Set your token
+devpilot config --github-token ghp_xxx
+
+# Generate and push in one command
+devpilot orchestrate my-spec.md --github myuser/myrepo --private
 ```
 
-### `devpilot validate <file>`
-
-Validate a spec file for completeness and correctness.
+## Configuration
 
 ```bash
-devpilot validate my-app.spec.md
-```
-
-### `devpilot generate <file> [options]`
-
-Generate a project from a spec file.
-
-```bash
-# Basic generation
-devpilot generate my-app.spec.md
-
-# Interactive mode (prompts for framework, agents, etc.)
-devpilot generate my-app.spec.md --interactive
-
-# With specific framework and agents
-devpilot generate my-app.spec.md \
-  --framework nextjs \
-  --language typescript \
-  --agents claude-code codex cursor
-
-# Dry run (preview without writing)
-devpilot generate my-app.spec.md --dry-run
-
-# With GitHub integration
-devpilot generate my-app.spec.md \
-  --github myuser/myrepo \
-  --private
-
-# Verbose output
-devpilot generate my-app.spec.md --verbose
-```
-
-**Options:**
-- `-f, --framework <name>` — Framework: react, nextjs, vue, svelte, express, fastify, django, flask, python, go, rust (default: react)
-- `-l, --language <name>` — Language: typescript, javascript, python, go, rust (default: typescript)
-- `-a, --agents <names...>` — Coding agents: claude-code, codex, cursor, windsurf, copilot, aider
-- `-o, --output <dir>` — Output directory (default: ./projects)
-- `-i, --interactive` — Use interactive prompts
-- `--github <repo>` — GitHub repo (owner/repo) to push to
-- `--private` — Make GitHub repo private
-- `--dry-run` — Preview without writing files
-- `-v, --verbose` — Show detailed output
-
-### `devpilot agents`
-
-List all supported coding agents and their config files.
-
-```bash
-devpilot agents
-```
-
-### `devpilot push <dir> <repo>`
-
-Push an existing project to GitHub.
-
-```bash
-devpilot push ./my-project myuser/myrepo
-devpilot push ./my-project https://github.com/myuser/myrepo --private
-```
-
-### `devpilot config`
-
-View or update DevPilot configuration.
-
-```bash
-devpilot config --list                    # Show current config
+devpilot config --list                    # View all settings
 devpilot config --framework nextjs        # Set default framework
 devpilot config --agents claude-code codex  # Set default agents
 devpilot config --github-token ghp_xxx   # Set GitHub token
-```
-
-### `devpilot parse <file>`
-
-Parse and display a spec file's structure.
-
-```bash
-devpilot parse my-app.spec.md           # Human-readable output
-devpilot parse my-app.spec.md --json    # JSON output
-```
-
-## Spec Format
-
-### Markdown (recommended)
-
-```markdown
----
-name: my-app
-description: A task management app
-version: 1.0.0
-author: Your Name
-tags: [web, productivity]
----
-
-# My App
-
-A modern task management application.
-
-## Features
-
-### Core Features
-- User authentication
-- Task CRUD operations
-- Drag-and-drop organization
-
-### Advanced Features
-- Real-time collaboration
-- AI-powered suggestions
-- Calendar integration
-
-## Architecture
-
-### Frontend
-- React 18 with TypeScript
-- Tailwind CSS
-- Zustand state management
-
-### Backend
-- Node.js with Express
-- PostgreSQL database
-- Redis caching
-
-## Requirements
-
-- Node.js 18+
-- PostgreSQL 14+
-- Modern browser
-
-## Constraints
-
-- Must work offline
-- <200ms response time
-- WCAG 2.1 AA accessible
-- GDPR compliant
-```
-
-### YAML
-
-```yaml
-name: my-app
-description: A task management app
-version: 1.0.0
-author: Your Name
-tags:
-  - web
-  - productivity
-
-sections:
-  - id: features
-    title: Features
-    content: |
-      Core features include authentication, task CRUD, and drag-and-drop.
-    subsections:
-      - id: core
-        title: Core Features
-        content: User auth, task management
-      - id: advanced
-        title: Advanced Features
-        content: Real-time collab, AI suggestions
-
-requirements:
-  - Node.js 18+
-  - PostgreSQL 14+
-
-constraints:
-  - Must work offline
-  - <200ms response time
-```
-
-## Coding Agent Integration
-
-DevPilot generates agent-specific instruction files so your coding agent knows exactly what to build:
-
-| Agent | Config File | How it Works |
-|-------|------------|--------------|
-| **Claude Code** | `.claude/CLAUDE.md` | Auto-read when you open the project |
-| **OpenAI Codex** | `CODEX.md` | Auto-read when you run `codex` |
-| **Cursor** | `.cursor/rules` | Auto-read in Cursor IDE |
-| **Windsurf** | `.windsurfrules` | Auto-read in Windsurf IDE |
-| **GitHub Copilot** | `.github/copilot-instructions.md` | Auto-read in VS Code |
-| **Aider** | `.aider.conf.yml` | Auto-read when you run `aider` |
-
-Each agent gets the full spec context, feature breakdown, requirements, constraints, and step-by-step implementation instructions.
-
-## GitHub Integration
-
-DevPilot can create GitHub repos and push your generated project:
-
-```bash
-# Set your GitHub token
-devpilot config --github-token ghp_your_token_here
-
-# Generate and push in one command
-devpilot generate my-app.spec.md --github myuser/myrepo
-
-# Or push later
-devpilot push ./projects/my-app myuser/myrepo
+devpilot config --openai-key sk-xxx      # Set OpenAI key for AI specs
 ```
 
 ## Development
@@ -321,7 +202,7 @@ devpilot push ./projects/my-app myuser/myrepo
 git clone https://github.com/yourusername/devpilot.git
 cd devpilot
 npm install
-npm run dev -- init my-test
+npx tsx src/cli/index.ts --help
 ```
 
 ## License
