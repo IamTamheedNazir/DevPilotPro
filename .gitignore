@@ -1,4 +1,6 @@
+node_modules/
+dist/
+.env
 .env.local
-node_modules
-dist
-src/convex/_generated
+*.log
+tsconfig.tsbuildinfo
