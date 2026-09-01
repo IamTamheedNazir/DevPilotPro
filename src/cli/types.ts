@@ -51,6 +51,8 @@ export type Framework =
   | "svelte"
   | "express"
   | "fastify"
+  | "django"
+  | "flask"
   | "python"
   | "go"
   | "rust"
@@ -93,6 +95,7 @@ export interface CLIConfig {
   defaultLanguage: Language;
   defaultAgents: Agent[];
   githubToken?: string;
+  openaiApiKey?: string;
   outputDir: string;
 }
 

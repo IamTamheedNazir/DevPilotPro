@@ -6,10 +6,18 @@
 import { Command } from "commander";
 import * as fs from "fs";
 import * as path from "path";
+import inquirer from "inquirer";
 import { SpecParser, createSampleSpec } from "./spec-parser.js";
 import { ProjectGenerator } from "./project-generator.js";
 import { GitHubIntegration, parseGitHubUrl } from "./github.js";
 import { loadConfig, updateConfig } from "./config.js";
+import { AISpecGenerator, createAISpecFromPrompt } from "./ai-generator.js";
+import {
+  promptForSpecCreation,
+  promptForGeneration,
+  promptForQuickStart,
+  promptForGitHubPush,
+} from "./interactive.js";
 import { Framework, Language, Agent, ProjectConfig, GenerationOptions } from "./types.js";
 
 const VERSION = "1.0.0";
@@ -28,7 +36,30 @@ program
   .description("Create a new spec file with a template")
   .argument("[name]", "Spec name", "my-project")
   .option("-f, --format <format>", "Spec format (md|yaml)", "md")
-  .action((name: string, options: { format: string }) => {
+  .option("-i, --interactive", "Use interactive prompts")
+  .action(async (name: string, options: { format: string; interactive: boolean }) => {
+    if (options.interactive) {
+      const answers = await promptForSpecCreation();
+      const ext = options.format === "yaml" ? ".spec.yaml" : ".spec.md";
+      const filePath = path.join(process.cwd(), `${answers.name}${ext}`);
+
+      const tags = `[web]`;
+      const featureList = answers.features
+        .split(",")
+        .map((f: string) => f.trim())
+        .filter(Boolean);
+
+      const spec = `---\nname: ${answers.name}\ndescription: ${answers.description}\nversion: ${answers.version}\nauthor: ${answers.author}\ntags: ${tags}\n---\n\n# ${answers.name}\n\n${answers.description}\n\n## Features\n\n### Core Features\n${featureList.map((f: string) => `- ${f}`).join("\n")}\n\n### Advanced Features\n- Performance optimization\n- Accessibility (WCAG 2.1)\n- Mobile responsive\n\n## Architecture\n\n### Frontend\n- ${answers.framework} with ${answers.language}\n\n### Backend\n- REST API with authentication\n\n## Requirements\n\n- Node.js 18+\n- Modern browser\n\n## Constraints\n\n- <200ms response time\n- GDPR compliant\n`;
+
+      fs.writeFileSync(filePath, spec);
+      console.log(`\n  ✨ Created spec file: ${filePath}\n`);
+      console.log("  Next steps:");
+      console.log(`    1. Review and edit ${filePath}`);
+      console.log(`    2. Run: specforge generate ${filePath}`);
+      console.log(`    3. Open the project with your coding agent\n`);
+      return;
+    }
+
     const ext = options.format === "yaml" ? ".spec.yaml" : ".spec.md";
     const filePath = path.join(process.cwd(), `${name}${ext}`);
 
@@ -45,6 +76,118 @@ program
     console.log(`    1. Edit ${filePath} with your project details`);
     console.log(`    2. Run: specforge generate ${filePath}`);
     console.log(`    3. Open the generated project with your coding agent\n`);
+  });
+
+// ─── CREATE (AI-powered) ────────────────────────────────────────────────
+
+program
+  .command("create")
+  .description("Generate a spec from a natural language prompt using AI")
+  .argument("[prompt]", "Describe your project in natural language")
+  .option("--no-ai", "Generate a basic spec without AI (works offline)")
+  .action(async (prompt: string | undefined, options: { ai: boolean }) => {
+    let projectPrompt: string = prompt || "";
+
+    if (!projectPrompt) {
+      const answers = await inquirer.prompt<{ prompt: string }> ([{
+        type: "input",
+        name: "prompt",
+        message: "Describe your project:",
+        validate: (input: string) =>
+          input.trim().length > 10
+            ? true
+            : "Please describe your project in more detail (10+ characters)",
+      }]);
+      projectPrompt = answers.prompt as string;
+    }
+
+    try {
+      let specFilePath: string;
+
+      const finalPrompt: string = projectPrompt as string;
+
+      if (options.ai) {
+        const generator = new AISpecGenerator();
+        specFilePath = await generator.generateAndSave(finalPrompt, process.cwd());
+      } else {
+        const specContent = createAISpecFromPrompt(finalPrompt);
+        const name = finalPrompt
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+        specFilePath = path.join(process.cwd(), `${name}.spec.md`);
+        fs.writeFileSync(specFilePath, specContent);
+        console.log(`\n  ✨ Created spec from prompt: ${specFilePath}\n`);
+      }
+
+      console.log("  Next steps:");
+      console.log(`    1. Review ${specFilePath}`);
+      console.log(`    2. Run: specforge generate ${specFilePath}`);
+      console.log(`    3. Open with your coding agent\n`);
+    } catch (error) {
+      console.error(`\n  ❌ ${(error as Error).message}\n`);
+      process.exit(1);
+    }
+  });
+
+// ─── QUICK (Interactive wizard) ─────────────────────────────────────────
+
+program
+  .command("quick")
+  .description("Interactive wizard: describe project → get spec → generate project")
+  .action(async () => {
+    try {
+      const answers = await promptForQuickStart();
+
+      console.log("\n  📝 Generating spec from your description...\n");
+
+      // Generate spec from prompt
+      let specFilePath: string;
+      try {
+        const generator = new AISpecGenerator();
+        specFilePath = await generator.generateAndSave(answers.prompt, process.cwd());
+      } catch {
+        // Fallback to offline mode
+        const specContent = createAISpecFromPrompt(answers.prompt);
+        const name = answers.prompt
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+        specFilePath = path.join(process.cwd(), `${name}.spec.md`);
+        fs.writeFileSync(specFilePath, specContent);
+        console.log(`  ✨ Created spec (offline mode): ${specFilePath}\n`);
+      }
+
+      // Parse and validate
+      const parser = new SpecParser(specFilePath);
+      const spec = parser.parse();
+
+      // Generate project
+      console.log("\n  🚀 Generating project...\n");
+
+      const projectConfig: ProjectConfig = {
+        name: spec.metadata.name,
+        description: spec.metadata.description || spec.overview,
+        framework: answers.framework,
+        language: (answers.framework === "django" || answers.framework === "flask" || answers.framework === "python"
+          ? "python"
+          : answers.framework === "go"
+          ? "go"
+          : answers.framework === "rust"
+          ? "rust"
+          : "typescript") as Language,
+        features: spec.sections.map((s) => s.title),
+        agents: answers.agents,
+      };
+
+      const generator = new ProjectGenerator(spec, projectConfig, "./projects");
+      const result = generator.generate();
+
+      printSuccess(result.name, result.path, projectConfig.agents);
+    } catch (error) {
+      console.error(`\n  ❌ ${(error as Error).message}\n`);
+      process.exit(1);
+    }
   });
 
 // ─── VALIDATE ────────────────────────────────────────────────────────────
@@ -89,31 +232,64 @@ program
 program
   .command("generate")
   .description("Generate a project from a spec file")
-  .argument("<file>", "Path to spec file")
-  .option("-f, --framework <framework>", "Framework (react|nextjs|vue|express|python|go)", "react")
-  .option("-l, --language <language>", "Language (typescript|javascript|python|go)", "typescript")
-  .option("-a, --agents <agents...>", "Coding agents to generate instructions for", ["claude-code"])
+  .argument("[file]", "Path to spec file (omit for interactive mode)")
+  .option("-f, --framework <framework>", "Framework")
+  .option("-l, --language <language>", "Language")
+  .option("-a, --agents <agents...>", "Coding agents to generate instructions for")
   .option("-o, --output <dir>", "Output directory", "./projects")
   .option("--github <repo>", "GitHub repo (owner/repo or URL) to push to after generation")
   .option("--private", "Make GitHub repo private", false)
   .option("--dry-run", "Show what would be generated without writing files", false)
+  .option("-i, --interactive", "Use interactive prompts")
   .option("-v, --verbose", "Verbose output", false)
   .action(
-    (
-      file: string,
+    async (
+      file: string | undefined,
       options: {
-        framework: string;
-        language: string;
-        agents: string[];
+        framework?: string;
+        language?: string;
+        agents?: string[];
         output: string;
         github?: string;
         private: boolean;
         dryRun: boolean;
+        interactive: boolean;
         verbose: boolean;
       }
     ) => {
       try {
         const config = loadConfig();
+
+        // Interactive mode if no file specified or --interactive flag
+        if (!file || options.interactive) {
+          const answers = await promptForGeneration();
+          const parser = new SpecParser(file || ".");
+          // Find first .spec.md file in current directory if no file given
+          if (!file) {
+            const specFiles = fs.readdirSync(process.cwd()).filter((f) => f.endsWith(".spec.md") || f.endsWith(".spec.yaml"));
+            if (specFiles.length === 0) {
+              console.error("\n  ❌ No spec files found in current directory.\n");
+              process.exit(1);
+            }
+            file = specFiles[0];
+            console.log(`  📖 Using spec: ${file}\n`);
+          }
+
+          options.framework = answers.framework;
+          options.language = answers.language;
+          options.agents = answers.agents;
+          options.output = answers.output;
+
+          if (answers.github) {
+            options.github = answers.githubRepo;
+            options.private = answers.githubPrivate;
+          }
+        }
+
+        if (!file) {
+          console.error("\n  ❌ No spec file specified.\n");
+          process.exit(1);
+        }
 
         console.log("\n  🔧 SpecForge - Generating Project\n");
 
@@ -153,10 +329,10 @@ program
         const projectConfig: ProjectConfig = {
           name: spec.metadata.name,
           description: spec.metadata.description || spec.overview,
-          framework: options.framework as Framework,
-          language: options.language as Language,
+          framework: (options.framework || config.defaultFramework) as Framework,
+          language: (options.language || config.defaultLanguage) as Language,
           features: spec.sections.map((s) => s.title),
-          agents: options.agents as Agent[],
+          agents: (options.agents || config.defaultAgents) as Agent[],
           github: githubConfig,
         };
 
@@ -301,6 +477,7 @@ program
   .option("--agents <agents...>", "Set default agents")
   .option("--output <dir>", "Set default output directory")
   .option("--github-token <token>", "Set GitHub personal access token")
+  .option("--openai-key <key>", "Set OpenAI API key for AI spec generation")
   .action(
     (options: {
       list?: boolean;
@@ -309,8 +486,9 @@ program
       agents?: string[];
       output?: string;
       githubToken?: string;
+      openaiKey?: string;
     }) => {
-      if (options.list || (!options.framework && !options.language && !options.agents && !options.output && !options.githubToken)) {
+      if (options.list || (!options.framework && !options.language && !options.agents && !options.output && !options.githubToken && !options.openaiKey)) {
         const config = loadConfig();
         console.log("\n  ⚙️  SpecForge Configuration\n");
         console.log(`    Framework:    ${config.defaultFramework}`);
@@ -318,6 +496,7 @@ program
         console.log(`    Agents:       ${config.defaultAgents.join(", ")}`);
         console.log(`    Output Dir:   ${config.outputDir}`);
         console.log(`    GitHub Token: ${config.githubToken ? "••••••••" + config.githubToken.slice(-4) : "Not set"}`);
+        console.log(`    OpenAI Key:   ${config.openaiApiKey ? "••••••••" + config.openaiApiKey.slice(-4) : "Not set (needed for AI spec generation)"}`);
         console.log("");
         return;
       }
@@ -328,6 +507,7 @@ program
       if (options.agents) updates.defaultAgents = options.agents;
       if (options.output) updates.outputDir = options.output;
       if (options.githubToken) updates.githubToken = options.githubToken;
+      if (options.openaiKey) updates.openaiApiKey = options.openaiKey;
 
       updateConfig(updates as Partial<import("./types.js").CLIConfig>);
       console.log("\n  ✅ Configuration updated\n");

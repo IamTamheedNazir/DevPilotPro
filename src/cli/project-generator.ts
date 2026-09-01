@@ -80,15 +80,25 @@ export class ProjectGenerator {
       case "vue":
         files.push(...this.generateVueFiles());
         break;
+      case "svelte":
+        files.push(...this.generateSvelteFiles());
+        break;
       case "express":
       case "fastify":
         files.push(...this.generateNodeServerFiles());
         break;
+      case "django":
+        files.push(...this.generateDjangoFiles());
+        break;
+      case "flask":
       case "python":
-        files.push(...this.generatePythonFiles());
+        files.push(...this.generateFlaskFiles());
         break;
       case "go":
         files.push(...this.generateGoFiles());
+        break;
+      case "rust":
+        files.push(...this.generateRustFiles());
         break;
       default:
         files.push(...this.generateVanillaFiles());
@@ -248,21 +258,123 @@ dist/
     ];
   }
 
-  private generatePythonFiles(): GeneratedFile[] {
+  private generateFlaskFiles(): GeneratedFile[] {
     return [
       {
         path: "requirements.txt",
-        content: this.config.features.map((f) => `${f.toLowerCase().replace(/\s+/g, "-")}`).join("\n") + "\n",
+        content: `flask>=3.0.0\npython-dotenv>=1.0.0\n` +
+          this.config.features.map((f) => `${f.toLowerCase().replace(/\s+/g, "-")}`).join("\n") + "\n",
         description: "Python dependencies",
       },
       {
-        path: "src/main.py",
-        content: `"""${this.config.name} - ${this.config.description}"""\n\n\ndef main():\n    print("Hello from ${this.config.name}")\n\n\nif __name__ == "__main__":\n    main()\n`,
-        description: "Main entry point",
+        path: "src/app.py",
+        content: `"""${this.config.name} - ${this.config.description}"""\n\nfrom flask import Flask, jsonify\n\napp = Flask(__name__)\n\n\n@app.route("/")\ndef index():\n    return jsonify({"message": "Hello from ${this.config.name}"})\n\n\nif __name__ == "__main__":\n    app.run(debug=True, port=5000)\n`,
+        description: "Flask application entry point",
       },
       {
         path: ".gitignore",
-        content: "__pycache__/\n*.pyc\n.env\nvenv/\n",
+        content: "__pycache__/\n*.pyc\n.env\nvenv/\ninstance/\n",
+        description: "Git ignore rules",
+      },
+    ];
+  }
+
+  private generateDjangoFiles(): GeneratedFile[] {
+    return [
+      {
+        path: "requirements.txt",
+        content: `django>=5.0\ndjango-rest-framework>=3.14\npython-dotenv>=1.0.0\n` +
+          this.config.features.map((f) => `${f.toLowerCase().replace(/\s+/g, "-")}`).join("\n") + "\n",
+        description: "Python dependencies",
+      },
+      {
+        path: `manage.py`,
+        content: `#!/usr/bin/env python\n"""Django management script for ${this.config.name}."""\nimport os\nimport sys\n\ndef main():\n    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "${this.config.name}.settings")\n    try:\n        from django.core.management import execute_from_command_line\n    except ImportError as exc:\n        raise ImportError(\n            \"Couldn't import Django. Are you sure it's installed and \"\n            \"available on your PYTHONPATH environment variable?\"\n        ) from exc\n    execute_from_command_line(sys.argv)\n\n\nif __name__ == "__main__":\n    main()\n`,
+        description: "Django management script",
+      },
+      {
+        path: `${this.config.name}/__init__.py`,
+        content: `"""${this.config.name} - ${this.config.description}"""\n`,
+        description: "Django app package",
+      },
+      {
+        path: `${this.config.name}/settings.py`,
+        content: `"""Django settings for ${this.config.name}."""\n\nimport os\nfrom pathlib import Path\n\nBASE_DIR = Path(__file__).resolve().parent.parent\nSECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "change-me-in-production")\nDEBUG = os.environ.get("DEBUG", "True") == "True"\nALLOWED_HOSTS = ["*"]\n\nINSTALLED_APPS = [\n    \"django.contrib.admin\",\n    \"django.contrib.auth\",\n    \"django.contrib.contenttypes\",\n    \"django.contrib.sessions\",\n    \"django.contrib.messages\",\n    \"django.contrib.staticfiles\",\n    \"rest_framework\",\n]\n\nMIDDLEWARE = [\n    \"django.middleware.security.SecurityMiddleware\",\n    \"django.contrib.sessions.middleware.SessionMiddleware\",\n    \"django.middleware.common.CommonMiddleware\",\n    \"django.middleware.csrf.CsrfViewMiddleware\",\n    \"django.contrib.auth.middleware.AuthenticationMiddleware\",\n    \"django.contrib.messages.middleware.MessageMiddleware\",\n]\n\nROOT_URLCONF = \"${this.config.name}.urls\"\n\nDATABASES = {\n    \"default\": {\n        \"ENGINE\": \"django.db.backends.sqlite3\",\n        \"NAME\": BASE_DIR / \"db.sqlite3\",\n    }\n}\n\nREST_FRAMEWORK = {\n    \"DEFAULT_PERMISSION_CLASSES\": [\n        \"rest_framework.permissions.AllowAny\",\n    ]\n}\n`,
+        description: "Django settings",
+      },
+      {
+        path: `${this.config.name}/urls.py`,
+        content: `"""URL configuration for ${this.config.name}."""\nfrom django.contrib import admin\nfrom django.urls import path, include\n\nurlpatterns = [\n    path(\"admin/\", admin.site.urls),\n    path(\"api/\", include(\"${this.config.name}.api.urls\")),\n]\n`,
+        description: "Django URL configuration",
+      },
+      {
+        path: ".gitignore",
+        content: "__pycache__/\n*.pyc\n.env\nvenv/\n*.sqlite3\nstaticfiles/\n",
+        description: "Git ignore rules",
+      },
+    ];
+  }
+
+  private generateSvelteFiles(): GeneratedFile[] {
+    return [
+      {
+        path: "package.json",
+        content: JSON.stringify(
+          {
+            name: this.config.name,
+            version: "0.1.0",
+            private: true,
+            scripts: {
+              dev: "vite dev",
+              build: "vite build",
+              preview: "vite preview",
+            },
+            devDependencies: {
+              "@sveltejs/kit": "^2.0.0",
+              "@sveltejs/vite-plugin-svelte": "^3.0.0",
+              svelte: "^4.2.0",
+              typescript: "^5.3.0",
+              vite: "^5.0.0",
+            },
+          },
+          null,
+          2
+        ),
+        description: "Project dependencies",
+      },
+      {
+        path: "svelte.config.js",
+        content: `import adapter from "@sveltejs/adapter-auto";\n\n/** @type {import('@sveltejs/kit').Config} */\nconst config = {\n  kit: {\n    adapter: adapter(),\n  },\n};\n\nexport default config;\n`,
+        description: "SvelteKit configuration",
+      },
+      {
+        path: "src/routes/+page.svelte",
+        content: `<script lang=\"ts\">\n  let title = "${this.config.name}";\n</script>\n\n<main>\n  <h1>{title}</h1>\n  <p>${this.config.description}</p>\n</main>\n\n<style>\n  main {\n    max-width: 800px;\n    margin: 0 auto;\n    padding: 2rem;\n  }\n</style>\n`,
+        description: "Main Svelte page",
+      },
+      {
+        path: ".gitignore",
+        content: "node_modules/\n.svelte-kit/\ndist/\n.env\n",
+        description: "Git ignore rules",
+      },
+    ];
+  }
+
+  private generateRustFiles(): GeneratedFile[] {
+    return [
+      {
+        path: "Cargo.toml",
+        content: `[package]\nname = "${this.config.name}"\nversion = "0.1.0"\nedition = "2021"\ndescription = "${this.config.description}"\n\n[dependencies]\nactix-web = "4"\nactix-rt = "2"\nserde = { version = "1", features = ["derive"] }\nserde_json = "1"\ntokio = { version = "1", features = ["full"] }\n`,
+        description: "Rust project manifest",
+      },
+      {
+        path: "src/main.rs",
+        content: `use actix_web::{web, App, HttpServer, HttpResponse, Responder};\n\nasync fn hello() -> impl Responder {\n    HttpResponse::Ok().json(serde_json::json!({\n        \"message\": \"Hello from ${this.config.name}\"\n    }))\n}\n\n#[actix_web::main]\nasync fn main() -> std::io::Result<()> {\n    println!(\"Server running on http://localhost:8080\");\n    HttpServer::new(|| {\n        App::new()\n            .route(\"/\", web::get().to(hello))\n    })\n    .bind((\"127.0.0.1\", 8080))?\n    .run()\n    .await\n}\n`,
+        description: "Rust main entry point",
+      },
+      {
+        path: ".gitignore",
+        content: "/target\n.env\n",
         description: "Git ignore rules",
       },
     ];

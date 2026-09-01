@@ -11,9 +11,11 @@ More powerful than [spec-kit](https://github.com/github/spec-kit). One command t
 | Feature | spec-kit | SpecForge |
 |---------|----------|-----------|
 | Spec format | Markdown only | Markdown + YAML |
+| AI spec generation | None | Generate specs from natural language |
+| Interactive mode | None | Guided prompts for everything |
 | Multi-agent support | None | Claude Code, Codex, Cursor, Windsurf, Copilot, Aider |
 | GitHub integration | Manual | Auto-create repo + push |
-| Framework scaffolding | Basic | React, Next.js, Vue, Express, Python, Go |
+| Framework scaffolding | Basic | React, Next.js, Vue, Svelte, Express, Fastify, Django, Flask, Go, Rust |
 | Agent instructions | None | Auto-generated per agent |
 | Spec validation | None | Full validation with warnings |
 | Config persistence | None | Saves your defaults |
@@ -30,7 +32,25 @@ npm install -g specforge
 npx specforge
 ```
 
-### Create a Spec
+### Quick Start (Interactive Wizard)
+
+```bash
+specforge quick
+```
+
+Describe your project in plain English → get an AI-generated spec → generate the project. All in one interactive session.
+
+### Create a Spec from a Prompt
+
+```bash
+# Offline mode (no API key needed)
+specforge create "A task management app with real-time collaboration"
+
+# AI-powered mode (needs OPENAI_API_KEY)
+specforge create "A social network for developers" --ai
+```
+
+### Or Create a Template Spec
 
 ```bash
 specforge init my-project
@@ -41,10 +61,15 @@ This creates a `my-project.spec.md` file with a template. Edit it with your proj
 ### Generate a Project
 
 ```bash
+# Non-interactive
 specforge generate my-project.spec.md --framework react --agents claude-code codex
-```
 
-This generates a complete project scaffold and hands it off to your coding agents.
+# Interactive mode (prompts for framework, agents, etc.)
+specforge generate my-project.spec.md --interactive
+
+# Or just run generate in a directory with spec files
+specforge generate
+```
 
 ### Open with Your Coding Agent
 
@@ -57,6 +82,26 @@ cd projects/my-project
 
 ## Commands
 
+### `specforge quick`
+
+Interactive wizard: describe project → AI generates spec → generate project.
+
+```bash
+specforge quick
+```
+
+### `specforge create [prompt]`
+
+Generate a spec from a natural language description.
+
+```bash
+# Offline (no API key)
+specforge create "A task management app with drag-and-drop"
+
+# AI-powered (needs OPENAI_API_KEY or specforge config --openai-key)
+specforge create "A social network for developers" --ai
+```
+
 ### `specforge init [name]`
 
 Create a new spec file from a template.
@@ -64,6 +109,7 @@ Create a new spec file from a template.
 ```bash
 specforge init my-app                    # Creates my-app.spec.md
 specforge init my-app --format yaml      # Creates my-app.spec.yaml
+specforge init my-app --interactive      # Guided spec creation
 ```
 
 ### `specforge validate <file>`
@@ -81,6 +127,9 @@ Generate a project from a spec file.
 ```bash
 # Basic generation
 specforge generate my-app.spec.md
+
+# Interactive mode (prompts for framework, agents, etc.)
+specforge generate my-app.spec.md --interactive
 
 # With specific framework and agents
 specforge generate my-app.spec.md \
@@ -101,10 +150,11 @@ specforge generate my-app.spec.md --verbose
 ```
 
 **Options:**
-- `-f, --framework <name>` — Framework: react, nextjs, vue, express, python, go (default: react)
-- `-l, --language <name>` — Language: typescript, javascript, python, go (default: typescript)
+- `-f, --framework <name>` — Framework: react, nextjs, vue, svelte, express, fastify, django, flask, python, go, rust (default: react)
+- `-l, --language <name>` — Language: typescript, javascript, python, go, rust (default: typescript)
 - `-a, --agents <names...>` — Coding agents: claude-code, codex, cursor, windsurf, copilot, aider
 - `-o, --output <dir>` — Output directory (default: ./projects)
+- `-i, --interactive` — Use interactive prompts
 - `--github <repo>` — GitHub repo (owner/repo) to push to
 - `--private` — Make GitHub repo private
 - `--dry-run` — Preview without writing files
