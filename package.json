@@ -1,0 +1,61 @@
+{
+  "name": "devpilot",
+  "version": "1.0.0",
+  "description": "AI-powered spec-driven development. Turn ideas into roadmaps, tasks, and working code with coding agents.",
+  "type": "module",
+  "bin": {
+    "devpilot": "./bin/devpilot.js"
+  },
+  "main": "./dist/cli/index.js",
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "typecheck": "tsc -b --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "node --test src/**/*.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "spec",
+    "specification",
+    "code-generation",
+    "coding-agent",
+    "claude-code",
+    "codex",
+    "cursor",
+    "windsurf",
+    "vibe-coding",
+    "developer-tools",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/rest": "^21.0.0",
+    "@vly-ai/integrations": "^0.6.13",
+    "chalk": "^4.1.2",
+    "commander": "^12.0.0",
+    "convex": "^1.45.0",
+    "glob": "^10.0.0",
+    "inquirer": "^8.0.0",
+    "js-yaml": "^4.1.0",
+    "simple-git": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.0.0",
+    "@types/inquirer": "^8.0.0",
+    "@types/js-yaml": "^4.0.0",
+    "@types/node": "^24.10.1",
+    "tsx": "^4.0.0",
+    "typescript": "~5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
