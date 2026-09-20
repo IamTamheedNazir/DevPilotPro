@@ -1,6 +1,98 @@
-# Contributing to DevPilot
+# Contributing to DevPilot / Steward
 
-Thanks for your interest in contributing to DevPilot! This guide will help you get started.
+Thanks for your interest in contributing! This guide has two parts:
+
+1. **Steward** (the current focus) — the engineering operating system for AI coding agents, living in `packages/` and `skills/`.
+2. **DevPilot CLI** (legacy) — the spec→roadmap→orchestration tool in `src/cli/`, documented in the second half of this file.
+
+---
+
+# Part 1: Contributing to Steward
+
+## Quick Start
+
+```bash
+# Clone the repo
+git clone https://github.com/yourusername/devpilot.git
+cd devpilot
+
+# Install dependencies (Bun workspaces: packages/core, packages/adapters, packages/cli)
+bun install
+
+# Typecheck and test
+bun tsc -b --noEmit
+bun vitest run
+
+# Exercise the CLI end to end in a scratch project
+mkdir /tmp/steward-demo && cd /tmp/steward-demo
+bun /path/to/repo/packages/cli/src/index.ts init
+cd /tmp/steward-demo && bun /path/to/repo/packages/cli/src/index.ts install --dry-run
+bun /path/to/repo/packages/cli/src/index.ts doctor
+```
+
+Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) first — the layering rules
+below are enforced there and by review.
+
+## Project Structure
+
+```
+skills/                    canonical skill library (steward.skill.v1)
+packages/core/             domain model: schema, brain, ledger, installer, doctor
+packages/adapters/         per-harness compilation (claude, codex, cursor, ...)
+packages/cli/              thin command layer
+docs/                      architecture, support matrix, brain spec, reference analysis
+```
+
+## Adding a Skill
+
+1. Create `skills/<id>.md` with `steward.skill.v1` frontmatter (see any
+   existing skill): kebab-case id, semver version, risk level, trigger
+   intents, outputs, and profiles (`minimal|builder|full|team`).
+2. Write the body: process → gates → output contract, in the terse voice of
+   the existing skills. Every gate must end in commands that were actually run.
+3. Validate: `bun packages/cli/src/index.ts validate skills/<id>.md`
+4. Add tests if you introduce new schema constraints; update `README.md`'s
+   skill table and the relevant profile.
+
+Rules: skills are vendor-neutral (never reference `.claude/` from the core
+body), reference `.vibe/` paths for persistence, and never allow a completion
+claim without evidence.
+
+## Adding a Harness Adapter
+
+1. Create `packages/adapters/src/<id>.ts` implementing `HarnessAdapter`:
+   `detect(root)`, `artifacts(skill)`, `indexBlock(skills)`.
+2. Set `capabilities.confidence` **honestly**: `verified` only if you checked
+   the official docs this session — record the date in the header comment and
+   in docs/SUPPORT_MATRIX.md. Otherwise use `unverified`.
+3. Register it in `packages/adapters/src/registry.ts` and export it from
+   `packages/adapters/src/index.ts`.
+4. Add contract tests in `packages/adapters/test/adapters.test.ts`.
+5. Update docs/SUPPORT_MATRIX.md.
+
+Invariants every adapter must keep: never overwrite foreign files, preserve
+user content in shared docs (use managed blocks), keep standing context cost
+near zero (pointers, not bodies).
+
+## Code Style (packages/)
+
+- TypeScript strict, ESM, `node:` prefix for builtins.
+- Core stays vendor-neutral: no harness names in `@steward/core`.
+- Every behavior change ships with a test.
+- Run `bun tsc -b --noEmit && bun vitest run` before opening a PR.
+
+## PR Title Format
+
+```
+feat(adapters): add X harness adapter
+feat(skills): add /security lifecycle skill
+fix(core): ledger skips corrupt lines instead of crashing
+docs: verify windsurf rules format against official docs
+```
+
+---
+
+# Part 2: Contributing to the DevPilot CLI (legacy)
 
 ## What is DevPilot?
 

@@ -1,0 +1,17 @@
+{
+  "name": "@steward/cli",
+  "version": "0.1.0",
+  "description": "Steward CLI: init, install, doctor, status, update, repair, uninstall, validate.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "bin": {
+    "steward": "./src/index.ts"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@steward/adapters": "*",
+    "@steward/core": "*",
+    "commander": "^12.1.0"
+  }
+}

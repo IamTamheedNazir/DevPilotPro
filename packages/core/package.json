@@ -1,0 +1,13 @@
+{
+  "name": "@steward/core",
+  "version": "0.1.0",
+  "description": "Steward core: canonical skill schema, project brain, evidence ledger, installer engine, doctor checks.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "license": "MIT",
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "zod": "^3.25.76"
+  }
+}
