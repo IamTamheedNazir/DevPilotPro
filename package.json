@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "AI-powered spec-driven development. Turn ideas into roadmaps, tasks, and working code with coding agents.",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "bin": {
     "devpilot": "./bin/devpilot.js"
   },
@@ -16,9 +19,11 @@
     "dev": "tsx src/cli/index.ts",
     "start": "node dist/cli/index.js",
     "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "steward": "bun packages/cli/src/index.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "node --test src/**/*.test.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -53,7 +58,8 @@
     "@types/js-yaml": "^4.0.0",
     "@types/node": "^24.10.1",
     "tsx": "^4.0.0",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=18.0.0"
