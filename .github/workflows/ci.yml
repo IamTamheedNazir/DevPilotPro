@@ -29,6 +29,19 @@ jobs:
       - name: Type check
         run: npx tsc -b --noEmit
 
+      - name: Run tests
+        run: npx vitest run
+
+      - name: Steward CLI smoke test
+        run: |
+          S="$GITHUB_WORKSPACE/packages/cli/src/index.ts"
+          npx tsx "$S" --help
+          SMOKE_DIR=$(mktemp -d)
+          cd "$SMOKE_DIR"
+          npx tsx "$S" init -n smoke-app
+          npx tsx "$S" install -t claude --dry-run | grep -q "DRY RUN"
+          npx tsx "$S" doctor || true
+
       - name: Run CLI help
         run: npx tsx src/cli/index.ts --help
 
