@@ -21,6 +21,14 @@ in the append-only evidence ledger introduced in Phase 1
 | `feature.state` | `transitionFeature` | featureId, from, to |
 | `risk.assessed` | risk engine | featureId, risk, signals |
 | `baseline.captured` | `captureBaseline` | revision, failing commands |
+| `evidence.invalidated` | freshness system | featureId, reason |
+
+## Surface hashes (Phase 3)
+
+`verification.run`, `review.qa`, and `review.security` events carry a
+`surfaceHash` — a content digest of the feature's code surface at record
+time. Gate evaluation recomputes the hash; a mismatch means the evidence is
+STALE and no longer satisfies its gate. See docs/GUARDIAN.md.
 
 ## Shape
 

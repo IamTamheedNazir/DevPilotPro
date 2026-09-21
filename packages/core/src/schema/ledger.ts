@@ -53,7 +53,8 @@ export type LedgerEventKind =
   | "review.security"
   | "review.qa"
   | "review.code"
-  | "debug.stage";
+  | "debug.stage"
+  | "evidence.invalidated";
 
 function recordHash(rec: Omit<LedgerRecord, "hash">): string {
   return sha256(

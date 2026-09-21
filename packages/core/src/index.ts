@@ -32,3 +32,11 @@ export * from "./verification/gates.js";
 export * from "./verification/verify.js";
 export * from "./baseline.js";
 export * from "./context.js";
+// Phase 3: repository intelligence + guardian + freshness
+export * from "./intel/index.js";
+export * from "./intel/graph.js";
+export * from "./intel/impact.js";
+export * from "./intel/freshness.js";
+export * from "./intel/review.js";
+export * from "./intel/debug.js";
+export * from "./guardian.js";
