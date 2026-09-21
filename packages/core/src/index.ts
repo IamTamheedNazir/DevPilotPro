@@ -40,3 +40,21 @@ export * from "./intel/freshness.js";
 export * from "./intel/review.js";
 export * from "./intel/debug.js";
 export * from "./guardian.js";
+
+// Phase 4: Security Guardian + Browser QA
+export * from "./security/redact.js";
+export * from "./security/schema.js";
+export * from "./security/classify.js";
+export * from "./security/store.js";
+export * from "./security/secrets.js";
+export * from "./security/dependency.js";
+export * from "./security/static.js";
+export * from "./security/authorization.js";
+export * from "./security/threat-model.js";
+export * from "./security/policy.js";
+export * from "./security/review.js";
+export * from "./qa/schema.js";
+export * from "./qa/store.js";
+export * from "./qa/run.js";
+export * from "./aggregate.js";
+export * from "./debug-links.js";

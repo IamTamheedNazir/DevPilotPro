@@ -22,6 +22,14 @@ in the append-only evidence ledger introduced in Phase 1
 | `risk.assessed` | risk engine | featureId, risk, signals |
 | `baseline.captured` | `captureBaseline` | revision, failing commands |
 | `evidence.invalidated` | freshness system | featureId, reason |
+| `security.review.recorded` | Security Guardian | featureId, verdict, checks, blockers, surface |
+| `security.finding.recorded` / `security.finding.updated` | finding store | findingId, category, severity, ruleId |
+| `security.finding.status` | status transitions | findingId, status, actor (agents refused for ACCEPTED_RISK) |
+| `security.exception` | accepted risks | exceptionId, findingId, reason, expiry |
+| `security.baseline` | baseline capture | fingerprint count |
+| `security.threat-model` | threat model generation | featureId, scenario count |
+| `qa.journey.created` | `saveJourney` | journeyId, featureId, step count, viewports |
+| `qa.journey.recorded` | QA provider runs | journeyId, resultId, status, viewports |
 
 ## Surface hashes (Phase 3)
 
