@@ -6,14 +6,18 @@ import type { CanonicalSkill, InstallTarget } from "@steward/core";
 
 /**
  * Cline adapter.
- * Confidence "unverified": the .clinerules/<name>.md directory convention is
- * widely documented but was not verified against official docs at authoring
- * time. See docs/SUPPORT_MATRIX.md before promoting this adapter.
+ * Partially verified 2026-09-20 against the official README
+ * (github.com/cline/cline): "Define project-specific rules in `.clinerules`
+ * files … picked up automatically by the CLI, VS Code extension, and JetBrains
+ * plugin" — the .clinerules mechanism is confirmed, but the exact directory
+ * layout (directory vs single file) was not fully confirmable at access time,
+ * so confidence stays "partial". Skills exist on the platform but were not
+ * verified here.
  */
 export const clineAdapter: HarnessAdapter = {
   id: "cline" as InstallTarget,
   label: "Cline",
-  homepage: "https://docs.cline.bot/features/clinerules",
+  homepage: "https://github.com/cline/cline",
   capabilities: {
     projectCommands: "unsupported",
     userCommands: "unsupported",
@@ -22,7 +26,7 @@ export const clineAdapter: HarnessAdapter = {
     memoryDoc: null,
     hooks: false,
     mcp: true,
-    confidence: "unverified",
+    confidence: "partial",
   },
   detect(root: string): Detection {
     const signals: string[] = [];

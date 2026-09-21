@@ -21,6 +21,7 @@ import {
   statusOf,
 } from "@steward/adapters";
 import { out, printChecks } from "./format.js";
+import { registerWorkflowCommands } from "./workflow.js";
 
 const program = new Command();
 
@@ -291,5 +292,7 @@ program
   .action(() => {
     console.log(brainPaths(process.cwd()).root);
   });
+
+registerWorkflowCommands(program);
 
 program.parse();

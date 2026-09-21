@@ -6,14 +6,18 @@ import type { CanonicalSkill, InstallTarget } from "@steward/core";
 
 /**
  * Roo Code adapter.
- * Confidence "unverified": the .roo/rules/*.md project-rules convention is
- * widely documented but was not verified against official docs at authoring
- * time. See docs/SUPPORT_MATRIX.md before promoting this adapter.
+ * Verified 2026-09-20 against the official custom-instructions docs
+ * (roocodeinc.github.io/Roo-Code/features/custom-instructions/):
+ *  - workspace rules directory: .roo/rules/ (files read recursively,
+ *    appended alphabetically; .roorules single-file is only a fallback)
+ *  - mode-specific rules live in .roo/rules-<modeSlug>/, which we do not use
+ * Limitations: custom modes/workflows exist but were not verified here, so
+ * projectCommands stays "unsupported" (conservative).
  */
 export const rooAdapter: HarnessAdapter = {
   id: "roo" as InstallTarget,
   label: "Roo Code",
-  homepage: "https://docs.roocode.com/features/rules",
+  homepage: "https://roocodeinc.github.io/Roo-Code/features/custom-instructions/",
   capabilities: {
     projectCommands: "unsupported",
     userCommands: "unsupported",
@@ -22,7 +26,7 @@ export const rooAdapter: HarnessAdapter = {
     memoryDoc: null,
     hooks: false,
     mcp: true,
-    confidence: "unverified",
+    confidence: "verified",
   },
   detect(root: string): Detection {
     const signals: string[] = [];

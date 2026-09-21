@@ -28,12 +28,32 @@ export const LedgerRecordV1 = z.object({
 export type LedgerRecord = z.infer<typeof LedgerRecordV1>;
 
 export type LedgerEventKind =
+  // Phase 1 kinds (installer + brain)
   | "brain.init"
   | "skills.install"
   | "skills.uninstall"
   | "evidence"
   | "decision"
-  | "note";
+  | "note"
+  // Phase 2 workflow kinds (deterministic state engine)
+  | "feature.created"
+  | "feature.state"
+  | "spec.created"
+  | "spec.approved"
+  | "requirement.created"
+  | "plan.created"
+  | "task.created"
+  | "task.started"
+  | "task.status"
+  | "verification.run"
+  | "verification.evaluated"
+  | "verification.passed"
+  | "baseline.captured"
+  | "review.recorded"
+  | "review.security"
+  | "review.qa"
+  | "review.code"
+  | "debug.stage";
 
 function recordHash(rec: Omit<LedgerRecord, "hash">): string {
   return sha256(
