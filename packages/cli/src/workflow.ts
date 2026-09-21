@@ -35,6 +35,22 @@ import {
   type TaskState,
   type VerificationEvaluation,
   type EngineRiskLevel,
+  // Phase 3: repository intelligence + guardian
+  buildIndex,
+  ensureIndex,
+  buildDependencyMap,
+  dependenciesOf,
+  dependentsOf,
+  associatedTests,
+  toProjectRelative,
+  impactOfChangedFiles,
+  workingTreeChanges,
+  retrieveContext,
+  guardFeature,
+  guardAll,
+  reviewDiff,
+  debugContext,
+  checkFreshness,
 } from "@steward/core";
 import { out } from "./format.js";
 
@@ -603,6 +619,138 @@ export function registerWorkflowCommands(program: Command): void {
 
   void resolveFinding;
   void setTaskStatus;
+
+  // ─── Phase 3: repository intelligence / guardian / review / debug ctx ──
+
+  const intel = program.command("intel").description("Repository intelligence: index, dependencies, impact, retrieval");
+
+  intel
+    .command("index")
+    .description("Build or refresh the repository file index (.steward/intel/index.json)")
+    .option("--json", "Machine-readable output", false)
+    .action((opts: { json: boolean }) => {
+      const index = buildIndex(process.cwd());
+      if (opts.json) return emit({ files: index.files.length, revision: index.revision, indexedAt: index.indexedAt }, true);
+      console.log(`\n  ${out.green("✔")} indexed ${index.files.length} files (revision ${index.revision.slice(0, 8) || "none"})\n`);
+    });
+
+  intel
+    .command("deps")
+    .description("Show what a file imports and what imports it")
+    .argument("<file>", "Project file path")
+    .option("--json", "Machine-readable output", false)
+    .action((file: string, opts: { json: boolean }) => {
+      const root = process.cwd();
+      const index = ensureIndex(root);
+      const map = buildDependencyMap(index);
+      const rel = toProjectRelative(root, file);
+      const data = {
+        file: rel,
+        imports: dependenciesOf(map, rel),
+        importedBy: dependentsOf(map, rel),
+        impactedTests: associatedTests(index, map, rel),
+      };
+      if (opts.json) return emit(data, true);
+      console.log(`\n  ${out.bold(rel)}`);
+      console.log(`  imports:      ${data.imports.join(", ") || out.dim("(none)")}`);
+      console.log(`  imported by:  ${data.importedBy.join(", ") || out.dim("(none)")}`);
+      console.log(`  tests:        ${data.impactedTests.join(", ") || out.dim("(none)")}\n`);
+    });
+
+  intel
+    .command("impact")
+    .description("Change-impact analysis for the working tree or explicit files")
+    .argument("[files...]", "Changed files (defaults to git working-tree changes)")
+    .option("--json", "Machine-readable output", false)
+    .action((files: string[], opts: { json: boolean }) => {
+      const impact = impactOfChangedFiles(process.cwd(), files.length > 0 ? files : workingTreeChanges(process.cwd()));
+      if (opts.json) return emit(impact, true);
+      console.log(`\n  changed: ${impact.changedFiles.length}, affected: ${impact.affected.length}, tests to run: ${impact.impactedTests.length}`);
+      for (const t of impact.impactedTests) console.log(`  ${out.yellow("◆")} ${t}`);
+      for (const n of impact.notes) console.log(`  ${out.dim("note:")} ${n}`);
+      console.log("");
+    });
+
+  intel
+    .command("retrieve")
+    .description("Deterministic targeted context retrieval for a query")
+    .argument("<query>", "Search text or TASK-NNN")
+    .action((query: string) => {
+      const result = retrieveContext(process.cwd(), query);
+      console.log(`\n${result.markdown}\n`);
+    });
+
+  program
+    .command("guardian")
+    .description("Requirement-level implementation analysis (detects partial work even when tests pass)")
+    .argument("[feature]", "Feature id (defaults to all active features)")
+    .option("--json", "Machine-readable output", false)
+    .action((featureId: string | undefined, opts: { json: boolean }) => {
+      const root = process.cwd();
+      const reports = featureId ? [guardFeature(root, featureId)] : guardAll(root);
+      if (opts.json) return emit(reports, true);
+      for (const report of reports) {
+        const icon = report.verdict === "SATISFIED" ? out.green("✔") : out.red("✖");
+        console.log(`\n  ${icon} ${out.bold(report.featureId)}: ${report.verdict}`);
+        for (const r of report.requirements) {
+          const mark = r.verdict === "IMPLEMENTED" ? out.green("IMPLEMENTED") : r.verdict === "PARTIAL" ? out.yellow("PARTIAL") : out.red("MISSING");
+          console.log(`    ${r.requirementId.padEnd(18)} ${mark.padEnd(12)} ${r.title}`);
+          for (const gap of r.gaps) console.log(`      ${out.yellow("↳")} ${gap}`);
+        }
+        for (const s of report.stubMarkers) {
+          console.log(`    ${out.red("stub")} ${s.file}:${s.line} (${s.marker})`);
+        }
+      }
+      console.log("");
+    });
+
+  review
+    .command("diff")
+    .description("Repository-aware diff review: scope drift, missing tests, TODOs, unsafe shortcuts, duplication")
+    .argument("<feature>", "Feature id")
+    .option("--files <paths>", "Comma-separated changed files (defaults to git working tree)")
+    .option("--no-record", "Do not persist findings to review.yaml")
+    .option("--json", "Machine-readable output", false)
+    .action((featureId: string, opts: { files?: string; record: boolean; json: boolean }) => {
+      const changed = opts.files?.split(",").map((s) => s.trim()).filter(Boolean);
+      const result = reviewDiff(process.cwd(), featureId, { changed, record: opts.record });
+      if (opts.json) return emit(result, true);
+      console.log(`\n  diff review — ${result.changedFiles.length} changed file(s)`);
+      for (const f of result.findings) {
+        const sev = f.severity === "BLOCKER" ? out.red("BLOCKER") : f.severity === "WARNING" ? out.yellow("WARNING") : out.dim("NOTE");
+        console.log(`  ${sev.padEnd(10)} ${f.file || "—"}  ${f.issue.slice(0, 90)}`);
+      }
+      console.log(`\n  ${result.summary.blockers} blocker(s), ${result.summary.warnings} warning(s), ${result.summary.notes} note(s)\n`);
+      if (result.summary.blockers > 0) process.exitCode = 1;
+    });
+
+  debug
+    .command("context")
+    .description("Repository-aware debug context: suspect files, impacted tests")
+    .argument("<id>", "Debug session id")
+    .option("--json", "Machine-readable output", false)
+    .action((id: string, opts: { json: boolean }) => {
+      const ctx = debugContext(process.cwd(), id);
+      if (opts.json) return emit(ctx, true);
+      console.log(`\n${ctx.markdown}\n`);
+    });
+
+  program
+    .command("freshness")
+    .description("Check whether verification/QA evidence is still fresh against the current code")
+    .argument("<feature>", "Feature id")
+    .option("--json", "Machine-readable output", false)
+    .action((featureId: string, opts: { json: boolean }) => {
+      const kinds = ["verification.run", "review.qa", "review.security"] as const;
+      const checks = kinds.map((kind) => checkFreshness(process.cwd(), featureId, kind));
+      if (opts.json) return emit(checks, true);
+      console.log("");
+      for (const c of checks) {
+        const mark = c.freshness === "FRESH" ? out.green("FRESH") : c.freshness === "STALE" ? out.red("STALE") : out.dim(c.freshness);
+        console.log(`  ${mark.padEnd(14)} ${c.evidenceKind.padEnd(20)} ${c.detail}`);
+      }
+      console.log("");
+    });
 }
 
 import { approveSpec } from "@steward/core";

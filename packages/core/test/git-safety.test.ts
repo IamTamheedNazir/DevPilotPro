@@ -15,7 +15,7 @@ import {
   runTaskVerification,
   transitionFeature,
 } from "../src/index.js";
-import { makeProject, PASS_CMD } from "./helpers.js";
+import { makeProject, PASS_CMD, writeImplAndTest } from "./helpers.js";
 
 describe("git safety", () => {
   it("pre-existing dirty user files survive the complete workflow untouched", async () => {
@@ -39,10 +39,11 @@ describe("git safety", () => {
     const f = createFeature(root, { title: "safe workflow", request: "plain work" });
     createSpec(root, f.id, { objective: "safe" });
     const r = addRequirement(root, f.id, { title: "r", status: "accepted" });
-    const t = addTask(root, f.id, { objective: "work", requirements: [r.id], verification: [PASS_CMD] });
+    const t = addTask(root, f.id, { objective: "work", requirements: [r.id], verification: [PASS_CMD], expectedFiles: ["src/widget.ts"] });
     approveSpec(root, f.id);
     createPlan(root, f.id);
     startTask(root, f.id, t.id);
+    writeImplAndTest(root, { impl: "src/widget.ts", test: "src/widget.test.ts" });
     await runTaskVerification(root, f.id, t.id);
     transitionFeature(root, f.id, "VERIFYING");
     const outcome = await completeFeature(root, f.id);

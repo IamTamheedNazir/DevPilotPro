@@ -14,7 +14,7 @@ import {
   transitionFeature,
   createPlan,
 } from "../src/index.js";
-import { makeProject, PASS_CMD, FAIL_CMD } from "./helpers.js";
+import { makeProject, PASS_CMD, FAIL_CMD, writeImplAndTest } from "./helpers.js";
 
 /** Drive a feature to VERIFYING with everything done except verdicts/commands. */
 async function toVerifying(
@@ -33,10 +33,12 @@ async function toVerifying(
     objective: "do all the work",
     requirements: reqIds,
     verification: [PASS_CMD],
+    expectedFiles: ["src/feature.ts"],
   });
   approveSpec(root, f.id);
   createPlan(root, f.id);
   startTask(root, f.id, t.id);
+  writeImplAndTest(root, { impl: "src/feature.ts", test: "src/feature.test.ts" });
   if (opts?.runTask !== false) {
     await runTaskVerification(root, f.id, t.id);
   }
@@ -125,10 +127,11 @@ describe("Definition-of-Done gates", () => {
     });
     createSpec(root, f.id, { objective: "profile page" });
     const r = addRequirement(root, f.id, { title: "profile renders", status: "accepted" });
-    const t = addTask(root, f.id, { objective: "render profile", requirements: [r.id], verification: [PASS_CMD] });
+    const t = addTask(root, f.id, { objective: "render profile", requirements: [r.id], verification: [PASS_CMD], expectedFiles: ["src/profile.ts"] });
     approveSpec(root, f.id);
     createPlan(root, f.id);
     startTask(root, f.id, t.id);
+    writeImplAndTest(root, { impl: "src/profile.ts", test: "src/profile.test.ts" });
     await runTaskVerification(root, f.id, t.id);
     transitionFeature(root, f.id, "VERIFYING");
 

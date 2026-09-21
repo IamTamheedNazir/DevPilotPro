@@ -16,7 +16,8 @@ function header(comment: string): string {
 }
 
 const WORKFLOW_LINE =
-  "Lifecycle state is deterministic: inspect it with `steward status` / `steward feature show <id>`, work tasks via `steward task start|verify|done`, and prove completion with `steward verify <feature>` — never claim COMPLETE without it. Your prose cannot change lifecycle state; only executed, recorded evidence can.";
+  "Lifecycle state is deterministic: inspect it with `steward status` / `steward feature show <id>`, work tasks via `steward task start|verify|done`, and prove completion with `steward verify <feature>` — never claim COMPLETE without it. Your prose cannot change lifecycle state; only executed, recorded evidence can. " +
+  "Before implementing, pull minimal context with `steward intel retrieve <topic-or-TASK-NNN>`; after changes, run `steward review diff <feature>` (scope drift, missing tests, unsafe shortcuts) and `steward guardian <feature>` (partial-implementation detection) — a passing test suite alone does NOT satisfy completion.";
 
 /** Slash-command stub (Claude Code, OpenCode). */
 export function commandStub(skill: CanonicalSkill): { front: string; body: string } {

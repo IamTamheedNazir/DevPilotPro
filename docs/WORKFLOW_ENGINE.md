@@ -50,20 +50,34 @@ plus `BLOCKED`) are enforced by `setTaskStatus`.
 Orchestration only — the harness writes code:
 
 1. load accepted spec + next ready task + its requirements (context pack)
-2. capture baseline (see VERIFICATION.md) so pre-existing failures are never
+2. pull targeted repository context: `steward intel retrieve <task-or-topic>`
+3. capture baseline (see VERIFICATION.md) so pre-existing failures are never
    blamed on the new task
-3. harness implements
-4. `runTaskVerification` executes the task's verification commands,
+4. harness implements
+5. `runTaskVerification` executes the task's verification commands,
    persists exit codes as evidence, updates task state
 
 ## /verify
 
-Independent re-verification; see [VERIFICATION.md](VERIFICATION.md).
+Independent re-verification; see [VERIFICATION.md](VERIFICATION.md). Since
+Phase 3 the gate set includes the Project Guardian (requirement surfaces
+verified against the repository) and evidence-freshness checks (stale
+passes no longer count).
 
 ## /review
 
-`recordReviewVerdict` records BLOCKER/WARNING/NOTE findings against a
-feature. Any unresolved BLOCKER gate blocks completion.
+Two layers, both recorded in `review.yaml`:
+
+- **Engine (deterministic, Phase 3):** `steward review diff <feature>`
+  inspects the actual change set — scope drift vs the plan, changed
+  implementation files no test imports, TODO/FIXME leftovers, unsafe
+  shortcuts (`eval`, empty catch, secret logging), copy-paste duplication,
+  and planned files missing from disk. Findings are BLOCKER/WARNING/NOTE.
+- **Agent (judgment):** the reviewing harness reads the diff for requirement
+  alignment and records findings with `steward review add` and verdicts with
+  `steward review verdict`.
+
+Any unresolved BLOCKER gates completion.
 
 ## /debug
 
@@ -71,3 +85,8 @@ Structured debugging state under the feature's `debug/` directory:
 `reproduce → hypotheses → evidence → root_cause → regression_test → fix →
 verify`. The state model makes "BUG → RANDOM EDIT → CLAIM FIXED" impossible
 to record: each stage must be observed and stored before the next.
+
+Since Phase 3 the workflow is repository-aware: `steward debug context
+<id>` attaches deterministic suspect files (retrieval on the symptom), the
+tests exercising the current change set, and coverage-gap warnings that
+must be resolved by the REGRESSION_TEST stage.

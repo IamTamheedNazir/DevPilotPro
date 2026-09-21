@@ -52,6 +52,20 @@ docs/            architecture, support matrix, brain spec, reference analysis
 - `context.ts` — deterministic context packs (task → requirements →
   verification expectations) for feeding a coding harness minimal context.
 
+**Phase 3 — repository intelligence + guardian** (same package, still
+deterministic):
+
+- `intel/` — the repository model: content-hashed file index
+  (`.steward/intel/index.json`, `steward.intel.v1`), import-derived
+  dependency graph, change-impact analysis, scope-drift detection,
+  keyword-based targeted retrieval, evidence freshness (surface hashing +
+  staleness), the engine-level diff reviewer, and repository-aware debug
+  context (see docs/REPOSITORY_INTELLIGENCE.md).
+- `guardian.ts` — requirement-level implementation analysis: verifies each
+  accepted requirement's implementation surface exists, is test-associated,
+  and carries no stub markers — even when all tests pass
+  (see docs/GUARDIAN.md). Enforced as a Definition-of-Done gate.
+
 **`@steward/adapters`** implements `HarnessAdapter` per harness:
 `detect(root)`, `artifacts(skill)`, `indexBlock(skills)`. Each adapter
 records its verified formats and confidence level in its header comment
@@ -119,7 +133,10 @@ approval, in every autonomy mode except `audit` (which changes nothing).
   plan → task lifecycle → verification → evidence → COMPLETE, plus the
   negative evals proving false completion is impossible (tests fail → NOT
   COMPLETE; missing evidence → NOT COMPLETE; missing review → NOT
-  COMPLETE) (packages/core/test/e2e.test.ts, verify.test.ts).
+  COMPLETE) and the Phase 3 evals (partial implementation with passing
+  tests → NOT COMPLETE; relevant code change after a pass → evidence STALE,
+  gates revert to MISSING) (packages/core/test/e2e.test.ts, verify.test.ts,
+  guardian.test.ts, freshness.test.ts, intel.test.ts, review-engine.test.ts).
 - Adapter contract: artifact shapes, shared block ids, detection signals,
   confidence honesty, workflow-command pointers (packages/adapters/test).
 - Smoke: CLI end-to-end in a temp project (init → install → doctor →

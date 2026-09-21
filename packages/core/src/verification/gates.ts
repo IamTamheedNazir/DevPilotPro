@@ -5,6 +5,8 @@ import { listRequirements } from "../state/requirements.js";
 import { listTasks } from "../state/tasks.js";
 import { openBlockers, readReview } from "../state/review.js";
 import { resolveCommands } from "./commands.js";
+import { checkFreshness } from "../intel/freshness.js";
+import { guardFeature } from "../guardian.js";
 import type { ResultCategory } from "./result.js";
 
 /**
@@ -116,15 +118,9 @@ export function evaluateGates(root: string, featureId: string): VerificationEval
     const latest = relevant[relevant.length - 1];
     if (!latest) {
       gates.push({ id: gateId, title, status: "MISSING", detail: `${command.command} has never been executed` });
-    } else if (latest.payload["success"] === true) {
-      gates.push({
-        id: gateId,
-        title,
-        status: "PASS",
-        detail: `exit 0 via ${command.command}`,
-        evidence: typeof latest.payload["evidenceFile"] === "string" ? [latest.payload["evidenceFile"]] : undefined,
-      });
-    } else {
+      continue;
+    }
+    if (latest.payload["success"] !== true) {
       gates.push({
         id: gateId,
         title,
@@ -132,7 +128,29 @@ export function evaluateGates(root: string, featureId: string): VerificationEval
         detail: `${command.command} failed (exit ${latest.payload["exitCode"]})`,
         evidence: typeof latest.payload["evidenceFile"] === "string" ? [latest.payload["evidenceFile"]] : undefined,
       });
+      continue;
     }
+    // Evidence freshness: passing evidence for verification.* is checked
+    // against the CURRENT code surface. If the relevant code changed after
+    // the run, the old pass no longer counts.
+    const freshness = checkFreshness(root, featureId, "verification.run");
+    if (freshness.freshness === "STALE") {
+      gates.push({
+        id: gateId,
+        title,
+        status: "MISSING",
+        detail: `evidence is STALE — ${freshness.detail}`,
+        evidence: typeof latest.payload["evidenceFile"] === "string" ? [latest.payload["evidenceFile"]] : undefined,
+      });
+      continue;
+    }
+    gates.push({
+      id: gateId,
+      title,
+      status: "PASS",
+      detail: `exit 0 via ${command.command} (fresh)` ,
+      evidence: typeof latest.payload["evidenceFile"] === "string" ? [latest.payload["evidenceFile"]] : undefined,
+    });
   }
 
   // 5. browser QA — required iff UI signals
@@ -141,13 +159,19 @@ export function evaluateGates(root: string, featureId: string): VerificationEval
   if (!qaRequired) {
     gates.push({ id: "gates.browserQA", title: "Browser QA", status: "NOT_REQUIRED", detail: "no UI surfaces detected" });
   } else {
-    const passed = evidence.some(
+    const qaPassed = evidence.some(
       (e) => e.kind === "review.qa" && e.payload["featureId"] === featureId && e.payload["verdict"] === "pass"
     );
+    const qaFreshness = qaPassed ? checkFreshness(root, featureId, "review.qa") : null;
     gates.push(
-      passed
+      qaPassed && qaFreshness?.freshness !== "STALE"
         ? { id: "gates.browserQA", title: "Browser QA", status: "PASS", detail: "QA evidence recorded" }
-        : { id: "gates.browserQA", title: "Browser QA", status: "MISSING", detail: "UI surfaces detected; browser QA evidence required" }
+        : {
+            id: "gates.browserQA",
+            title: "Browser QA",
+            status: "MISSING",
+            detail: qaFreshness?.freshness === "STALE" ? `QA evidence is STALE — ${qaFreshness.detail}` : "UI surfaces detected; browser QA evidence required",
+          }
     );
   }
   void featureVerificationQa;
@@ -160,10 +184,16 @@ export function evaluateGates(root: string, featureId: string): VerificationEval
     const passed = evidence.some(
       (e) => e.kind === "review.security" && e.payload["featureId"] === featureId && e.payload["verdict"] === "pass"
     );
+    const secFreshness = passed ? checkFreshness(root, featureId, "review.security") : null;
     gates.push(
-      passed
+      passed && secFreshness?.freshness !== "STALE"
         ? { id: "gates.securityReview", title: "Security review", status: "PASS", detail: "security review evidence recorded" }
-        : { id: "gates.securityReview", title: "Security review", status: "MISSING", detail: `risk ${risk}; security review evidence required` }
+        : {
+            id: "gates.securityReview",
+            title: "Security review",
+            status: "MISSING",
+            detail: secFreshness?.freshness === "STALE" ? `security evidence is STALE — ${secFreshness.detail}` : `risk ${risk}; security review evidence required`,
+          }
     );
   }
 
@@ -180,6 +210,44 @@ export function evaluateGates(root: string, featureId: string): VerificationEval
           detail: [...blockedTasks.map((t) => `task ${t.id} BLOCKED`), ...blockers.map((f) => `finding ${f.id}`)].join("; "),
         }
   );
+
+  // 8. Project Guardian — partial implementation detection. Tests passing
+  // is not enough: the requirement's implementation surface must exist,
+  // without stub markers, and be test-associated.
+  try {
+    const report = guardFeature(root, featureId);
+    const partial = report.requirements.filter((r) => r.verdict !== "IMPLEMENTED");
+    const stubBlockers = report.stubMarkers.filter(
+      (s) => s.marker === "not implemented" || s.marker === "throw not-implemented" || s.marker === "unimplemented"
+    );
+    if (partial.length === 0 && stubBlockers.length === 0) {
+      gates.push({
+        id: "gates.guardian",
+        title: "Guardian: requirements implemented",
+        status: "PASS",
+        detail: `${report.requirements.length} requirement(s) verified against the repository`,
+      });
+    } else {
+      const details = [
+        ...partial.map((r) => `${r.requirementId}: ${r.verdict} (${r.gaps.join("; ")})`),
+        ...stubBlockers.map((s) => `stub marker in ${s.file}:${s.line} (${s.marker})`),
+      ];
+      gates.push({
+        id: "gates.guardian",
+        title: "Guardian: requirements implemented",
+        status: "FAIL",
+        detail: details.join("; "),
+      });
+    }
+  } catch {
+    // Guardian needs an index; if it cannot run, do not silently pass.
+    gates.push({
+      id: "gates.guardian",
+      title: "Guardian: requirements implemented",
+      status: "MISSING",
+      detail: "guardian could not analyze the repository — run 'steward intel index'",
+    });
+  }
 
   const blocking = gates.filter((g) => g.status === "FAIL" || g.status === "MISSING");
   return {

@@ -8,6 +8,7 @@ import { ensureDir } from "../util/fs.js";
 import { resolveCommands } from "./commands.js";
 import { evaluateGates, type VerificationEvaluation } from "./gates.js";
 import { runCommand, type ResultCategory, type VerificationResult } from "./result.js";
+import { stampPayload } from "../intel/freshness.js";
 
 const ACTOR = `steward-core@${VERSION}`;
 
@@ -50,17 +51,22 @@ export async function runVerification(
       JSON.stringify({ featureId, ...result }, null, 2),
       "utf8"
     );
-    ledger.append("verification.run", ACTOR, featureId, {
+    ledger.append(
+      "verification.run",
+      ACTOR,
       featureId,
-      category: cmd.category,
-      command: result.command,
-      exitCode: result.exitCode,
-      success: result.success,
-      startedAt: result.startedAt,
-      completedAt: result.completedAt,
-      durationMs: result.durationMs,
-      evidenceFile: `.steward/features/${featureId}/evidence/${evidenceFile}`,
-    });
+      stampPayload(root, featureId, {
+        featureId,
+        category: cmd.category,
+        command: result.command,
+        exitCode: result.exitCode,
+        success: result.success,
+        startedAt: result.startedAt,
+        completedAt: result.completedAt,
+        durationMs: result.durationMs,
+        evidenceFile: `.steward/features/${featureId}/evidence/${evidenceFile}`,
+      })
+    );
     executions.push({ ...result, featureId, evidenceFile });
   }
 
@@ -80,12 +86,17 @@ export function recordReviewVerdict(
   verdict: "pass" | "fail",
   summary: string
 ): void {
-  new Ledger(brainPaths(root).ledgerJsonl).append(kind, ACTOR, featureId, {
+  new Ledger(brainPaths(root).ledgerJsonl).append(
+    kind,
+    ACTOR,
     featureId,
-    verdict,
-    summary,
-    at: nowIso(),
-  });
+    stampPayload(root, featureId, {
+      featureId,
+      verdict,
+      summary,
+      at: nowIso(),
+    })
+  );
 }
 
 /**
@@ -138,13 +149,21 @@ export async function runTaskVerification(
 
 /**
  * The completion boundary: run verification, evaluate gates, and only then
- * attempt VERIFYING → COMPLETE. Returns the gate report either way.
+ * attempt VERIFYING → COMPLETE. When the feature is still IMPLEMENTING
+ * (all tasks resolved but not yet explicitly moved to VERIFYING), it is
+ * advanced to VERIFYING first — running verification IS the verifying
+ * activity; requiring a separate manual transition adds ceremony without
+ * adding evidence.
  */
 export async function completeFeature(
   root: string,
   featureId: string
 ): Promise<{ evaluation: VerificationEvaluation; completed: boolean; remainingGates: string[] }> {
-  const { transitionFeature } = await import("../state/features.js");
+  const { transitionFeature, getFeature } = await import("../state/features.js");
+  const feature = getFeature(root, featureId);
+  if (feature.state === "IMPLEMENTING") {
+    transitionFeature(root, featureId, "VERIFYING");
+  }
   const { evaluation } = await runVerification(root, featureId);
   const outcome = transitionFeature(root, featureId, "COMPLETE", {
     gates: () => evaluation.gates,
