@@ -133,10 +133,14 @@ approval, in every autonomy mode except `audit` (which changes nothing).
   plan → task lifecycle → verification → evidence → COMPLETE, plus the
   negative evals proving false completion is impossible (tests fail → NOT
   COMPLETE; missing evidence → NOT COMPLETE; missing review → NOT
-  COMPLETE) and the Phase 3 evals (partial implementation with passing
+  COMPLETE), the Phase 3 evals (partial implementation with passing
   tests → NOT COMPLETE; relevant code change after a pass → evidence STALE,
-  gates revert to MISSING) (packages/core/test/e2e.test.ts, verify.test.ts,
-  guardian.test.ts, freshness.test.ts, intel.test.ts, review-engine.test.ts).
+  gates revert to MISSING), and the Phase 4 evals (deliberately buggy
+  authorization with passing tests → security FAIL / NOT COMPLETE, then
+  fixed code + authorization evidence → COMPLETE; hostile page/injected
+  text cannot alter gate decisions) (packages/core/test/e2e.test.ts,
+  verify.test.ts, guardian.test.ts, freshness.test.ts, intel.test.ts,
+  review-engine.test.ts, security-*.test.ts, qa.test.ts, phase4-eval.test.ts).
 - Adapter contract: artifact shapes, shared block ids, detection signals,
   confidence honesty, workflow-command pointers (packages/adapters/test).
 - Smoke: CLI end-to-end in a temp project (init → install → doctor →

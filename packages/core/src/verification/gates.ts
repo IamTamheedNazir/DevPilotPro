@@ -4,6 +4,9 @@ import { getFeature, requiredGatesFor, refreshRisk } from "../state/features.js"
 import { listRequirements } from "../state/requirements.js";
 import { listTasks } from "../state/tasks.js";
 import { openBlockers, readReview } from "../state/review.js";
+import { listJourneys, journeyFreshness, latestResult } from "../qa/store.js";
+import { readFindings, exceptedFindingIds } from "../security/store.js";
+import { readSecurityPolicy } from "../security/policy.js";
 import { resolveCommands } from "./commands.js";
 import { checkFreshness } from "../intel/freshness.js";
 import { guardFeature } from "../guardian.js";
@@ -153,31 +156,67 @@ export function evaluateGates(root: string, featureId: string): VerificationEval
     });
   }
 
-  // 5. browser QA — required iff UI signals
+  // 5. browser QA - required iff UI signals or journeys declared
   const featureVerificationQa = featureVerification.filter((e) => e.payload["kind"] === "qa" || e.kind === "review.qa");
-  const qaRequired = feature.requiredGates.includes("browserQA");
+  const qaRequired = feature.requiredGates.includes("browserQA") || listJourneys(root, featureId).length > 0;
   if (!qaRequired) {
-    gates.push({ id: "gates.browserQA", title: "Browser QA", status: "NOT_REQUIRED", detail: "no UI surfaces detected" });
+    gates.push({ id: "gates.browserQA", title: "Browser QA", status: "NOT_REQUIRED", detail: "no UI surfaces detected and no journeys declared" });
   } else {
-    const qaPassed = evidence.some(
-      (e) => e.kind === "review.qa" && e.payload["featureId"] === featureId && e.payload["verdict"] === "pass"
-    );
-    const qaFreshness = qaPassed ? checkFreshness(root, featureId, "review.qa") : null;
-    gates.push(
-      qaPassed && qaFreshness?.freshness !== "STALE"
-        ? { id: "gates.browserQA", title: "Browser QA", status: "PASS", detail: "QA evidence recorded" }
-        : {
-            id: "gates.browserQA",
-            title: "Browser QA",
-            status: "MISSING",
-            detail: qaFreshness?.freshness === "STALE" ? `QA evidence is STALE — ${qaFreshness.detail}` : "UI surfaces detected; browser QA evidence required",
-          }
-    );
+    const journeys = listJourneys(root, featureId);
+    if (journeys.length === 0) {
+      // No journeys yet: fall back to ledger QA verdicts (Phase 3 behavior).
+      const qaPassed = evidence.some(
+        (e) => e.kind === "review.qa" && e.payload["featureId"] === featureId && e.payload["verdict"] === "pass"
+      );
+      const qaFreshness = qaPassed ? checkFreshness(root, featureId, "review.qa") : null;
+      gates.push(
+        qaPassed && qaFreshness?.freshness !== "STALE"
+          ? { id: "gates.browserQA", title: "Browser QA", status: "PASS", detail: "QA evidence recorded" }
+          : {
+              id: "gates.browserQA",
+              title: "Browser QA",
+              status: "MISSING",
+              detail: qaFreshness?.freshness === "STALE" ? `QA evidence is STALE - ${qaFreshness.detail}` : "UI surfaces detected; browser QA evidence required",
+            }
+      );
+    } else {
+      // Journey-aware QA gate: every journey must exist, be CURRENT, and its
+      // latest result must PASS (43/44/45).
+      const reports = journeys.map((j) => journeyFreshness(root, j));
+      const latest = new Map(journeys.map((j) => [j.id, latestResult(root, j.id)]));
+      const problems: string[] = [];
+      for (const j of journeys) {
+        const fr = reports.find((r) => r.journeyId === j.id)!;
+        const res = latest.get(j.id);
+        if (fr.freshness === "STALE") problems.push(`${j.id}: STALE - ${fr.detail}`);
+        else if (fr.freshness === "NO_RESULT") problems.push(`${j.id}: has never run`);
+        else if (fr.freshness === "UNAVAILABLE") problems.push(`${j.id}: provider UNAVAILABLE - ${res?.unavailableReason ?? "unknown"}`);
+        else if (!res || res.status !== "PASS") problems.push(`${j.id}: last run did not PASS`);
+      }
+      gates.push(
+        problems.length === 0
+          ? { id: "gates.browserQA", title: "Browser QA", status: "PASS", detail: `${journeys.length} journey(s) current and passing` }
+          : { id: "gates.browserQA", title: "Browser QA", status: "FAIL", detail: problems.join("; ") }
+      );
+    }
   }
   void featureVerificationQa;
 
-  // 6. security review — required iff risk HIGH/CRITICAL or security signals
-  const securityRequired = feature.requiredGates.includes("securityReview");
+  // 6. security review - required iff risk HIGH/CRITICAL, security signals,
+  // or unresolved blocker findings exist (21: findings block regardless).
+  const securityFindings = readFindings(root, featureId);
+  const excepted = exceptedFindingIds(root);
+  const secPolicy = readSecurityPolicy(root);
+  const unresolvedBlockerFindings = securityFindings.filter((f) => {
+    if (f.status !== "OPEN") return false;
+    if (excepted.has(f.id)) return false;
+    if (secPolicy.block.critical && f.severity === "CRITICAL") return true;
+    if (secPolicy.block.high && f.severity === "HIGH") return true;
+    return false;
+  });
+  const securityRequired =
+    feature.requiredGates.includes("securityReview") ||
+    unresolvedBlockerFindings.length > 0;
   if (!securityRequired) {
     gates.push({ id: "gates.securityReview", title: "Security review", status: "NOT_REQUIRED", detail: `risk ${risk}` });
   } else {
@@ -185,16 +224,23 @@ export function evaluateGates(root: string, featureId: string): VerificationEval
       (e) => e.kind === "review.security" && e.payload["featureId"] === featureId && e.payload["verdict"] === "pass"
     );
     const secFreshness = passed ? checkFreshness(root, featureId, "review.security") : null;
-    gates.push(
-      passed && secFreshness?.freshness !== "STALE"
-        ? { id: "gates.securityReview", title: "Security review", status: "PASS", detail: "security review evidence recorded" }
-        : {
-            id: "gates.securityReview",
-            title: "Security review",
-            status: "MISSING",
-            detail: secFreshness?.freshness === "STALE" ? `security evidence is STALE — ${secFreshness.detail}` : `risk ${risk}; security review evidence required`,
-          }
-    );
+    if (unresolvedBlockerFindings.length > 0) {
+      gates.push({
+        id: "gates.securityReview",
+        title: "Security review",
+        status: "FAIL",
+        detail: `unresolved security blocker(s): ${unresolvedBlockerFindings.map((f) => `${f.id}(${f.severity} ${f.category})`).join(", ")}`,
+      });
+    } else if (passed && secFreshness?.freshness !== "STALE") {
+      gates.push({ id: "gates.securityReview", title: "Security review", status: "PASS", detail: "security review evidence recorded" });
+    } else {
+      gates.push({
+        id: "gates.securityReview",
+        title: "Security review",
+        status: "MISSING",
+        detail: secFreshness?.freshness === "STALE" ? `security evidence is STALE - ${secFreshness.detail}` : `risk ${risk}; security review evidence required`,
+      });
+    }
   }
 
   // 7. no blockers
