@@ -54,7 +54,18 @@ export type LedgerEventKind =
   | "review.qa"
   | "review.code"
   | "debug.stage"
-  | "evidence.invalidated";
+  | "evidence.invalidated"
+  // Phase 4: Security Guardian kinds
+  | "security.finding.recorded"
+  | "security.finding.updated"
+  | "security.finding.status"
+  | "security.exception"
+  | "security.baseline"
+  | "security.threat-model"
+  | "security.review.recorded"
+  // Phase 4: Browser QA kinds
+  | "qa.journey.created"
+  | "qa.journey.recorded";
 
 function recordHash(rec: Omit<LedgerRecord, "hash">): string {
   return sha256(

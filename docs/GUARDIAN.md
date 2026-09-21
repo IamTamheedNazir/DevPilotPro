@@ -1,6 +1,10 @@
 # Project Guardian and Evidence Freshness
 
 The two Phase 3 systems that make "tests pass" insufficient for completion.
+(Phase 4 adds the Security Guardian and Browser QA — see
+[SECURITY_GUARDIAN.md](SECURITY_GUARDIAN.md) and [BROWSER_QA.md](BROWSER_QA.md);
+`steward guardian-full` combines all of them into one completion decision,
+and `steward ship` evaluates the same gates for release readiness.)
 
 ## Project Guardian
 

@@ -1,5 +1,6 @@
 import { exec } from "node:child_process";
 import { sha256 } from "../util/hash.js";
+import { redactSecrets } from "../security/redact.js";
 
 /**
  * Observed execution is evidence; a model's message is not. This runner
@@ -25,22 +26,13 @@ export interface VerificationResult {
 
 const SUMMARY_MAX_CHARS = 2000;
 
-// Secrets are redacted from stored summaries before anything is persisted.
-const REDACTIONS: Array<[RegExp, string]> = [
-  [/\b(?:sk|pk|rk)_[A-Za-z0-9_-]{8,}/g, "[REDACTED_KEY]"],
-  [/\bgh[pousr]_[A-Za-z0-9]{20,}/g, "[REDACTED_GITHUB]"],
-  [/\bAKIA[0-9A-Z]{16}\b/g, "[REDACTED_AWS]"],
-  [/\bxox[baprs]-[A-Za-z0-9-]{10,}/g, "[REDACTED_SLACK]"],
-  [/\bBearer\s+[A-Za-z0-9._-]{16,}/gi, "Bearer [REDACTED]"],
-  [/(?:password|passwd|secret|token|api[_-]?key)\s*[=:]\s*\S+/gi, "$1=[REDACTED]"],
-];
-
+/**
+ * Phase 4: command output is redacted through the ONE shared redaction
+ * layer (security/redact.ts), the same one used for scanner output, QA
+ * evidence, findings, and context packs. Never a second, weaker filter.
+ */
 export function redact(output: string): string {
-  let out = output;
-  for (const [pattern, replacement] of REDACTIONS) {
-    out = out.replace(pattern, replacement);
-  }
-  return out;
+  return redactSecrets(output);
 }
 
 export function truncate(output: string, max = SUMMARY_MAX_CHARS): string {

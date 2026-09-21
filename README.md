@@ -114,9 +114,10 @@ steward doctor
 | Gemini CLI | TOML commands + GEMINI.md block | verified |
 | Cursor | agent-requested rules | partial |
 | OpenAI Codex CLI | AGENTS.md index block | partial |
-| Windsurf / Cline / Roo Code | rules files | unverified |
-| GitHub Copilot | copilot-instructions.md index block | unverified |
-| Aider | CONVENTIONS.md index block | unverified |
+| Windsurf | `.windsurf/rules/` files | verified |
+| Cline / Roo Code | rules files | partial / verified |
+| GitHub Copilot | copilot-instructions.md index block | verified |
+| Aider | CONVENTIONS.md index block | verified |
 
 Confidence is evidence-backed and documented in
 [docs/SUPPORT_MATRIX.md](docs/SUPPORT_MATRIX.md) — including what we have

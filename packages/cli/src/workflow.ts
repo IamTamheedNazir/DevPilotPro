@@ -51,6 +51,39 @@ import {
   reviewDiff,
   debugContext,
   checkFreshness,
+  // Phase 4: Security Guardian + Browser QA
+  classifySecuritySurface,
+  runSecurityReview,
+  readSecurityReview,
+  readFindings,
+  allFindings,
+  getFinding,
+  setFindingStatus,
+  captureSecurityBaseline,
+  readSecurityBaseline,
+  detectDependencyScanners,
+  detectStaticScanners,
+  detectProjectSecurityTools,
+  runSecretScan,
+  generateThreatModel,
+  readThreatModel,
+  upsertThreatScenario,
+  recordException,
+  readExceptions,
+  runSecretScan as _runSecretScanAlias,
+  qaCapabilities,
+  runJourneysForFeature,
+  runSingleJourney,
+  listJourneys,
+  saveJourney,
+  journeyFreshness,
+  featureQaStatus,
+  guardianAggregate,
+  shipCheck,
+  debugFromQa,
+  debugFromSecurity,
+  readQaPolicy,
+  readSecurityPolicy,
 } from "@steward/core";
 import { out } from "./format.js";
 
@@ -735,6 +768,285 @@ export function registerWorkflowCommands(program: Command): void {
       console.log(`\n${ctx.markdown}\n`);
     });
 
+  debug
+    .command("from-qa")
+    .description("Seed a debug session from a failed QA result")
+    .argument("<result>", "QA result id (or journey id)")
+    .action((resultId: string) => {
+      try {
+        const link = debugFromQa(process.cwd(), resultId);
+        console.log(`\n  ${out.green("✔")} ${link.sessionId} opened`);
+        console.log(`  ${out.dim(link.summary)}\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  debug
+    .command("from-security")
+    .description("Seed a debug session from a security finding")
+    .argument("<finding>", "Security finding id (SEC-NNN)")
+    .action((findingId: string) => {
+      try {
+        const link = debugFromSecurity(process.cwd(), findingId);
+        console.log(`\n  ${out.green("✔")} ${link.sessionId} opened`);
+        console.log(`  ${out.dim(link.summary)}\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  // ─── Phase 4: security guardian ────────────────────────────────────
+
+  const security = program.command("security").description("Security Guardian: change-aware security verification");
+
+  security
+    .command("review")
+    .description("Run the security review pipeline for a feature")
+    .argument("<feature>", "Feature id")
+    .option("--json", "Machine-readable output", false)
+    .action((featureId: string, opts: { json: boolean }) => {
+      try {
+        const result = runSecurityReview(process.cwd(), featureId);
+        if (opts.json) return emit(result, true);
+        const r = result.review;
+        console.log(`\n  ${out.bold("STEWARD SECURITY GUARDIAN")} — ${featureId}`);
+        console.log(`  Risk: ${r.risk}`);
+        console.log(`  Surface: ${r.surface.join(", ") || "(none)"}\n`);
+        for (const c of r.checks) {
+          const mark =
+            c.status === "PASS" ? out.green("PASS") : c.status === "FAIL" ? out.red("FAIL") : out.dim(c.status);
+          console.log(`  ${mark.padEnd(12)} ${c.title.padEnd(18)} ${c.detail.slice(0, 90)}`);
+        }
+        const findings = result.findings.filter((f) => f.status === "OPEN");
+        if (findings.length > 0) {
+          console.log(`\n  Findings:`);
+          for (const f of findings) {
+            console.log(`    ${out.red(f.severity.padEnd(8))} ${f.id.padEnd(8)} ${f.title.slice(0, 80)}`);
+            console.log(`    ${out.dim("conf:")} ${f.confidence.padEnd(8)} ${out.dim("basis:")} ${f.basis[0] ?? ""}`);
+          }
+        }
+        console.log(`\n  SECURITY GATE: ${r.verdict === "pass" ? out.green("PASS") : out.red("FAIL")}\n`);
+        if (r.verdict !== "pass") process.exitCode = 1;
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  security
+    .command("findings")
+    .description("List security findings (optionally set status: open/resolved/false-positive/accepted-risk)")
+    .argument("[feature]", "Feature id (defaults to all)")
+    .option("--set-status <status>", "OPEN|RESOLVED|FALSE_POSITIVE|ACCEPTED_RISK")
+    .option("--finding <id>", "Finding id for --set-status")
+    .option("--reason <text>", "Reason (required for ACCEPTED_RISK)")
+    .option("--expires <date>", "Exception expiry (ISO date)")
+    .option("--json", "Machine-readable output", false)
+    .action((featureId: string | undefined, opts: { setStatus?: string; finding?: string; reason?: string; expires?: string; json: boolean }) => {
+      try {
+        if (opts.setStatus) {
+          if (!opts.finding) throw new Error("--set-status requires --finding <id>");
+          const { finding, exception } = setFindingStatus(process.cwd(), opts.finding, opts.setStatus as never, {
+            reason: opts.reason,
+            expires: opts.expires,
+            actor: "human:cli",
+          });
+          if (opts.json) return emit({ finding, exception }, true);
+          console.log(`\n  ${out.green("✔")} ${finding.id} → ${finding.status}${exception ? ` (exception ${exception.id})` : ""}\n`);
+          return;
+        }
+        const findings = featureId ? readFindings(process.cwd(), featureId) : allFindings(process.cwd());
+        if (opts.json) return emit(findings, true);
+        if (findings.length === 0) return console.log(`\n  ${out.dim("no findings")}\n`);
+        for (const f of findings) {
+          console.log(`  ${f.severity.padEnd(8)} ${f.id.padEnd(8)} ${f.status.padEnd(14)} ${f.title.slice(0, 70)}`);
+        }
+        console.log("");
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  security
+    .command("baseline")
+    .description("Capture or show the security baseline (pre-existing vs introduced)")
+    .option("--capture", "Capture a new baseline", false)
+    .option("--json", "Machine-readable output", false)
+    .action((opts: { capture: boolean; json: boolean }) => {
+      const b = opts.capture ? captureSecurityBaseline(process.cwd()) : readSecurityBaseline(process.cwd());
+      if (opts.json) return emit(b, true);
+      if (!b) return console.log(`\n  ${out.dim("no baseline captured")}\n`);
+      console.log(`\n  ${out.green("✔")} baseline: ${b.fingerprints.length} finding fingerprint(s) at ${b.revision.slice(0, 8) || "(no git)"}\n`);
+    });
+
+  security
+    .command("exceptions")
+    .description("List security exceptions (accepted risks with rationale)")
+    .option("--json", "Machine-readable output", false)
+    .action((opts: { json: boolean }) => {
+      const exceptions = readExceptions(process.cwd());
+      if (opts.json) return emit(exceptions, true);
+      if (exceptions.length === 0) return console.log(`\n  ${out.dim("no exceptions recorded")}\n`);
+      for (const e of exceptions) {
+        console.log(`  ${e.id.padEnd(12)} ${e.findingId.padEnd(8)} ${e.reason.slice(0, 60)}${e.expires ? ` (expires ${e.expires})` : ""}`);
+      }
+      console.log("");
+    });
+
+  security
+    .command("threat-model")
+    .description("Generate or show a small feature-specific threat model")
+    .argument("<feature>", "Feature id")
+    .option("--scenario <id>", "Record a scenario verdict: --scenario THREAT-X-001 --status VERIFIED")
+    .option("--status <status>", "PENDING|VERIFIED|MITIGATED")
+    .option("--json", "Machine-readable output", false)
+    .action((featureId: string, opts: { scenario?: string; status?: string; json: boolean }) => {
+      try {
+        if (opts.scenario) {
+          const model = readThreatModel(process.cwd(), featureId);
+          if (!model) throw new Error(`no threat model for '${featureId}' — run without flags first`);
+          const scenario = model.scenarios.find((s) => s.id === opts.scenario);
+          if (!scenario) throw new Error(`scenario '${opts.scenario}' not found`);
+          scenario.status = (opts.status ?? "VERIFIED") as "PENDING" | "VERIFIED" | "MITIGATED";
+          const updated = upsertThreatScenario(process.cwd(), featureId, scenario);
+          if (opts.json) return emit(updated, true);
+          console.log(`\n  ${out.green("✔")} ${opts.scenario} → ${scenario.status}\n`);
+          return;
+        }
+        const model = generateThreatModel(process.cwd(), featureId);
+        if (opts.json) return emit(model, true);
+        console.log(`\n  ${out.bold("THREAT MODEL")} — ${featureId}`);
+        console.log(`  Assets: ${model.assets.join("; ")}`);
+        console.log(`  Actors: ${model.actors.join("; ")}\n`);
+        for (const s of model.scenarios) {
+          console.log(`  ${out.yellow(s.id.padEnd(16))} ${s.title}`);
+          console.log(`  ${out.dim("".padEnd(16))} control: ${s.control}`);
+          console.log(`  ${out.dim("".padEnd(16))} verify:  ${s.verification} [${s.status}]`);
+        }
+        console.log("");
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  security
+    .command("capabilities")
+    .description("Honest capability detection: what security tooling is available")
+    .option("--json", "Machine-readable output", false)
+    .action((opts: { json: boolean }) => {
+      const deps = detectDependencyScanners(process.cwd());
+      const statics = detectStaticScanners();
+      const projectTools = detectProjectSecurityTools(process.cwd());
+      const data = {
+        builtInSecretScan: "AVAILABLE",
+        dependency: deps,
+        static: statics,
+        projectTools,
+      };
+      if (opts.json) return emit(data, true);
+      console.log(`\n  ${out.bold("SECURITY CAPABILITIES")}\n`);
+      console.log(`  Built-in secret scan: AVAILABLE`);
+      for (const d of deps) console.log(`  ${d.name.padEnd(14)} ${d.available ? out.green("AVAILABLE") : out.dim("UNAVAILABLE")} ${d.version ?? d.note ?? ""}`);
+      for (const s of statics) console.log(`  ${s.tool.padEnd(14)} ${s.available ? out.green("AVAILABLE") : out.dim("UNAVAILABLE")} ${s.version ?? s.note ?? ""}`);
+      for (const t of projectTools) console.log(`  ${out.dim("project:")} ${t.tool} (${t.via})`);
+      console.log("");
+    });
+
+  // ─── Phase 4: browser QA ─────────────────────────────────────────
+
+  const qa = program.command("qa").description("Advanced browser QA: real journeys, real evidence");
+
+  qa
+    .command("capabilities")
+    .description("Honest capability detection: Playwright, browsers, axe, base URL")
+    .option("--json", "Machine-readable output", false)
+    .action((opts: { json: boolean }) => {
+      qaCapabilities(process.cwd()).then((caps) => {
+        if (opts.json) return emit(caps, true);
+        console.log(`\n  ${out.bold("QA CAPABILITIES")}\n`);
+        console.log(`  Playwright: ${caps.available ? out.green("AVAILABLE") : out.red("UNAVAILABLE")} — ${caps.detail}`);
+        if (caps.projectConfig) console.log(`  Project config: ${caps.projectConfig}`);
+        for (const b of caps.browsers) console.log(`    ${b.name.padEnd(10)} ${b.available ? out.green("INSTALLED") : out.dim("NOT INSTALLED")}`);
+        console.log(`  axe integration: ${caps.axeIntegration ? out.green("AVAILABLE") : out.dim("NOT CONFIGURED")}`);
+        console.log(`  Base URL: ${caps.baseUrl}\n`);
+      }).catch((err) => fail(err as Error));
+    });
+
+  qa
+    .command("journey")
+    .description("Declare a QA journey (id title feature startUrl + steps via flags)")
+    .argument("<id>", "Journey id (e.g. QA-PROFILE-001)")
+    .requiredOption("--feature <id>", "Feature id")
+    .requiredOption("--title <text>", "Journey title")
+    .requiredOption("--start <path>", "Start path (e.g. /settings/profile)")
+    .option("--req <ids>", "Comma-separated requirement ids")
+    .option("--viewports <list>", "desktop|mobile|both", "desktop")
+    .option("--step <step...>", "Step like 'goto:/path' 'click:sel' 'fill:sel:value' 'expect:sel:text'")
+    .option("--surface <files>", "Comma-separated files whose change invalidates this journey")
+    .action((id: string, opts: { feature: string; title: string; start: string; req?: string; viewports: string; step?: string[]; surface?: string }) => {
+      try {
+        const steps = (opts.step ?? []).map(parseStepArg) as Parameters<typeof saveJourney>[1]["steps"];
+        if (steps.length === 0) throw new Error("at least one --step is required");
+        const viewports: Array<"desktop" | "mobile"> =
+          opts.viewports === "both" ? ["desktop", "mobile"] : opts.viewports === "mobile" ? ["mobile"] : ["desktop"];
+        const journey = saveJourney(process.cwd(), {
+          id,
+          title: opts.title,
+          featureId: opts.feature,
+          requirementIds: opts.req?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
+          startUrl: opts.start,
+          steps,
+          viewports,
+          surfaces: opts.surface?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
+          accessibility: true,
+        });
+        console.log(`\n  ${out.green("✔")} journey ${journey.id} saved (${steps.length} steps, ${viewports.join("+")})\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  qa
+    .command("run")
+    .description("Run QA journeys (a journey id, or all for a feature)")
+    .argument("[journey]", "Journey id")
+    .option("--feature <id>", "Run all journeys for a feature")
+    .option("--json", "Machine-readable output", false)
+    .action((journeyId: string | undefined, opts: { feature?: string; json: boolean }) => {
+      const runner = journeyId ? runSingleJourney(process.cwd(), journeyId) : runJourneysForFeature(process.cwd(), opts.feature ?? "", false as never);
+      runner.then((summary) => {
+        if (opts.json) return emit(summary, true);
+        console.log(`\n  ${out.bold("BROWSER QA")}\n`);
+        for (const r of summary.results) {
+          const mark = r.status === "PASS" ? out.green("PASS") : r.status === "FAIL" ? out.red("FAIL") : out.red("UNAVAILABLE");
+          console.log(`  ${mark.padEnd(12)} ${r.journeyId.padEnd(20)} ${r.summary.slice(0, 80)}`);
+          for (const vp of r.viewports) {
+            const vm = vp.status === "PASS" ? out.green("PASS") : out.red(vp.status);
+            console.log(`    ${vm.padEnd(12)} ${vp.viewport.padEnd(8)} ${vp.message ? vp.message.slice(0, 70) : ""}`);
+          }
+        }
+        console.log(`\n  ${summary.detail}\n`);
+        if (summary.status !== "PASS") process.exitCode = 1;
+      }).catch((err) => fail(err as Error));
+    });
+
+  qa
+    .command("status")
+    .description("Journey freshness and blocking status for a feature")
+    .argument("<feature>", "Feature id")
+    .option("--json", "Machine-readable output", false)
+    .action((featureId: string, opts: { json: boolean }) => {
+      const status = featureQaStatus(process.cwd(), featureId);
+      if (opts.json) return emit(status, true);
+      console.log(`\n  ${out.bold("QA STATUS")} — ${featureId}\n`);
+      for (const j of status.journeys) {
+        const mark = j.freshness === "CURRENT" ? out.green("CURRENT") : j.freshness === "STALE" ? out.red("STALE") : out.yellow(j.freshness);
+        console.log(`  ${mark.padEnd(18)} ${j.journeyId.padEnd(20)} ${j.detail.slice(0, 60)}`);
+      }
+      if (status.journeys.length === 0) console.log(`  ${out.dim("no journeys declared")}`);
+      console.log("");
+    });
+
   program
     .command("freshness")
     .description("Check whether verification/QA evidence is still fresh against the current code")
@@ -751,6 +1063,84 @@ export function registerWorkflowCommands(program: Command): void {
       }
       console.log("");
     });
+
+  // ─── Phase 4: aggregate guardian + ship readiness ─────────────────
+
+  program
+    .command("guardian-full")
+    .description("Aggregate Guardian: requirements + implementation + tests + security + QA + freshness in one decision")
+    .argument("<feature>", "Feature id")
+    .option("--json", "Machine-readable output", false)
+    .action((featureId: string, opts: { json: boolean }) => {
+      try {
+        const agg = guardianAggregate(process.cwd(), featureId);
+        if (opts.json) return emit(agg, true);
+        console.log(`\n  ${out.bold("PROJECT GUARDIAN")} — ${agg.featureId} (${agg.state}, risk ${agg.risk})\n`);
+        console.log(`  Requirements: ${agg.requirements.verified}/${agg.requirements.total} verified (${agg.requirements.partial} partial, ${agg.requirements.missing} missing)`);
+        console.log(`  Tests:        ${agg.tests.status}`);
+        console.log(`  Security:     ${agg.security.required ? (agg.security.verdict === "pass" ? out.green("PASS") : out.red(agg.security.verdict.toUpperCase())) : out.dim("not required")} — ${agg.security.detail}`);
+        console.log(`  Browser QA:   ${agg.qa.required ? agg.qa.status : out.dim("not required")} — ${agg.qa.detail}`);
+        console.log(`  Evidence:     verification ${agg.evidence.verification}, qa ${agg.evidence.qa}, security ${agg.evidence.security}\n`);
+        if (agg.blockers.length > 0) {
+          console.log(`  ${out.red("BLOCKERS:")}`);
+          for (const b of agg.blockers) console.log(`    - ${b}`);
+          console.log("");
+        }
+        console.log(`  RESULT: ${agg.result === "COMPLETE" ? out.green("COMPLETE") : out.red("NOT COMPLETE")}\n`);
+        if (agg.result !== "COMPLETE") process.exitCode = 1;
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  program
+    .command("ship")
+    .description("Release readiness check (no deployment)")
+    .argument("[check]", "Literal 'check'")
+    .option("--json", "Machine-readable output", false)
+    .action((what: string | undefined, opts: { json: boolean }) => {
+      void what;
+      const result = shipCheck(process.cwd());
+      if (opts.json) return emit(result, true);
+      console.log(`\n  ${out.bold("SHIP READINESS")}\n`);
+      for (const c of result.checks) {
+        const mark = c.status === "PASS" ? out.green("PASS") : c.status === "WARN" ? out.yellow("WARN") : c.status === "UNKNOWN" ? out.dim("UNKNOWN") : out.red("FAIL");
+        console.log(`  ${mark.padEnd(10)} ${c.title.padEnd(30)} ${c.detail}`);
+      }
+      console.log(`\n  ${result.summary}\n`);
+      if (!result.ready) process.exitCode = 1;
+    });
+}
+
+/** Parse 'goto:/path' 'click:sel' 'fill:sel:value' 'expect:sel:text' steps. */
+function parseStepArg(arg: string): { kind: string; selector?: string; value?: string; text?: string; url?: string } {
+  const idx = arg.indexOf(":");
+  if (idx < 0) throw new Error(`invalid step '${arg}': use kind:arg form (goto|click|fill|press|wait|expect|screenshot|checkAccessibility)`);
+  const kind = arg.slice(0, idx);
+  const rest = arg.slice(idx + 1);
+  switch (kind) {
+    case "goto":
+      return { kind, url: rest };
+    case "click":
+    case "wait":
+    case "screenshot":
+    case "checkAccessibility":
+      return { kind, selector: rest || undefined };
+    case "press":
+      return { kind, selector: "body", value: rest };
+    case "fill": {
+      const sep = rest.indexOf(":");
+      if (sep < 0) throw new Error(`fill step needs selector:value, got '${arg}'`);
+      return { kind, selector: rest.slice(0, sep), value: rest.slice(sep + 1) };
+    }
+    case "expect": {
+      const sep = rest.indexOf(":");
+      if (sep < 0) throw new Error(`expect step needs selector:text, got '${arg}'`);
+      return { kind, selector: rest.slice(0, sep), text: rest.slice(sep + 1) };
+    }
+    default:
+      throw new Error(`unknown step kind '${kind}'`);
+  }
 }
 
 import { approveSpec } from "@steward/core";
