@@ -5,16 +5,21 @@ import type { Artifact, Detection, HarnessAdapter } from "./types.js";
 import type { CanonicalSkill, InstallTarget } from "@steward/core";
 
 /**
- * Windsurf adapter.
- * Confidence "unverified": the .windsurf/rules/*.md format (frontmatter with
- * a `trigger` field) is widely documented but was not verified against
- * official docs at authoring time. See docs/SUPPORT_MATRIX.md before
- * promoting this adapter.
+ * Windsurf adapter (Cascade / Devin Desktop).
+ * Verified 2026-09-20 against the official Memories & Rules docs
+ * (docs.devin.ai/desktop/cascade/memories):
+ *  - workspace rules: .devin/rules/*.md (preferred) with .windsurf/rules/*.md
+ *    kept as a read fallback — one file per rule, frontmatter `trigger:`
+ *    field (always_on | glob | model_decision | manual), 12,000-char limit
+ *  - we emit `trigger: manual` (context is loaded on demand, matching our
+ *    context-economy model)
+ * Limitations: skills and workflows exist on the platform but were not
+ * verified here; commands stay unsupported.
  */
 export const windsurfAdapter: HarnessAdapter = {
   id: "windsurf" as InstallTarget,
   label: "Windsurf",
-  homepage: "https://docs.windsurf.com/windsurf/cascada/memories",
+  homepage: "https://docs.devin.ai/desktop/cascade/memories",
   capabilities: {
     projectCommands: "unsupported",
     userCommands: "unsupported",
@@ -23,7 +28,7 @@ export const windsurfAdapter: HarnessAdapter = {
     memoryDoc: null,
     hooks: false,
     mcp: true,
-    confidence: "unverified",
+    confidence: "verified",
   },
   detect(root: string): Detection {
     const signals: string[] = [];

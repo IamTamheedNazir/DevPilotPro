@@ -15,6 +15,9 @@ function header(comment: string): string {
   return `<!-- ${MANAGED_BY}. Do not edit; run 'steward update'. -->`;
 }
 
+const WORKFLOW_LINE =
+  "Lifecycle state is deterministic: inspect it with `steward status` / `steward feature show <id>`, work tasks via `steward task start|verify|done`, and prove completion with `steward verify <feature>` — never claim COMPLETE without it. Your prose cannot change lifecycle state; only executed, recorded evidence can.";
+
 /** Slash-command stub (Claude Code, OpenCode). */
 export function commandStub(skill: CanonicalSkill): { front: string; body: string } {
   const front = ["---", `description: ${yamlScalar(skill.front.description)}`, "---", ""].join("\n");
@@ -23,6 +26,7 @@ export function commandStub(skill: CanonicalSkill): { front: string; body: strin
     `Read and follow the Steward skill \`${canonicalPath(skill)}\` (v${skill.front.version}, "${skill.front.title}").`,
     "",
     "Apply its process and gates exactly. Do not claim any completion without the evidence that skill requires.",
+    WORKFLOW_LINE,
     "",
     "Skill arguments: $ARGUMENTS",
     "",
@@ -36,6 +40,7 @@ export function rulePointerBody(skill: CanonicalSkill): string {
     header(""),
     `Read and follow the Steward skill \`${canonicalPath(skill)}\` (v${skill.front.version}, "${skill.front.title}") before doing this work.`,
     "Apply its process and gates exactly; completion claims require the evidence that skill demands.",
+    WORKFLOW_LINE,
     "",
   ].join("\n");
 }
@@ -51,6 +56,7 @@ export function cursorRuleBody(skill: CanonicalSkill): string {
     header(""),
     `Read and follow the Steward skill \`${canonicalPath(skill)}\` (v${skill.front.version}, "${skill.front.title}") before doing this work.`,
     "Apply its process and gates exactly; completion claims require the evidence that skill demands.",
+    WORKFLOW_LINE,
     "",
   ].join("\n");
 }
@@ -62,6 +68,7 @@ export function geminiToml(skill: CanonicalSkill): string {
     [
       `Read and follow the Steward skill \`${canonicalPath(skill)}\` (v${skill.front.version}, "${skill.front.title}").`,
       "Apply its process and gates exactly. Do not claim any completion without the evidence that skill requires.",
+      WORKFLOW_LINE,
     ].join("\n")
   );
   return `description = ${description}\nprompt = ${prompt}\n`;
@@ -78,6 +85,7 @@ export function claudeSkillMd(skill: CanonicalSkill): string {
     header(""),
     `Read and follow the Steward skill \`${canonicalPath(skill)}\` (v${skill.front.version}, "${skill.front.title}").`,
     "Apply its process and gates exactly; completion claims require the evidence that skill demands.",
+    WORKFLOW_LINE,
     "",
   ].join("\n");
 }
@@ -97,6 +105,7 @@ export function memoryIndexMarkdown(skills: CanonicalSkill[], harnessLabel: stri
     ...rows,
     "",
     "Completion claims require evidence (test output, command results, browser verification). The `/vibe` skill is the entry point when unsure.",
+    WORKFLOW_LINE,
     "",
   ].join("\n");
 }

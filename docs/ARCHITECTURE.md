@@ -35,6 +35,31 @@ docs/            architecture, support matrix, brain spec, reference analysis
 - `skills/registry.ts` — locates the canonical `skills/` directory and
   filters by profile.
 
+**Phase 2 — the workflow engine** (same package, still vendor-neutral):
+
+- `state/` — the `.steward/` project state model: schema-versioned
+  (`steward.state.v1`), zod-validated stores for features, specs,
+  requirements, tasks, reviews, and debug sessions; deterministic feature
+  state machine (see docs/FEATURE_LIFECYCLE.md).
+- `risk.ts` — deterministic risk classification from textual signals
+  (auth, payments, migrations, secrets, …); policy, never vibes.
+- `verification/` — conservative command discovery, the observed
+  `VerificationResult` model (redaction + truncation), the
+  Definition-of-Done gate engine, and `runVerification`/`completeFeature`
+  (see docs/VERIFICATION.md).
+- `baseline.ts` — revision + dirty-file capture; pre-existing-failure vs
+  regression classification.
+- `context.ts` — deterministic context packs (task → requirements →
+  verification expectations) for feeding a coding harness minimal context.
+
+**`@steward/adapters`** implements `HarnessAdapter` per harness:
+`detect(root)`, `artifacts(skill)`, `indexBlock(skills)`. Each adapter
+records its verified formats and confidence level in its header comment
+(see docs/SUPPORT_MATRIX.md). Adding a harness is one file + one registry
+line. Phase 2 adapters additionally point agents at the deterministic
+workflow commands (`steward vibe|spec|plan|build|verify|evidence`) instead
+of duplicating any state logic in harness-specific instructions.
+
 **`@steward/adapters`** implements `HarnessAdapter` per harness:
 `detect(root)`, `artifacts(skill)`, `indexBlock(skills)`. Each adapter
 records its verified formats and confidence level in its header comment
@@ -83,12 +108,20 @@ approval, in every autonomy mode except `audit` (which changes nothing).
 ## Testing strategy
 
 - Unit: schema validation, ledger chaining/tamper detection, plan
-  classification, managed blocks (packages/core/test).
-- Integration: the install engine against temp directories — apply, skip,
-  backup, blocked foreign files, uninstall preservation, pruning
-  (packages/core/test/engine.test.ts).
+  classification, managed blocks, feature state machine, requirements,
+  task dependencies, gates, redaction, path traversal, context packs
+  (packages/core/test).
+- Integration: the install engine and the verification engine against temp
+  directories — apply, skip, backup, blocked foreign files, uninstall
+  preservation, pruning, command execution, baseline, git safety
+  (packages/core/test).
+- End-to-end: the Phase 2 fixture evaluation — init → spec → approve →
+  plan → task lifecycle → verification → evidence → COMPLETE, plus the
+  negative evals proving false completion is impossible (tests fail → NOT
+  COMPLETE; missing evidence → NOT COMPLETE; missing review → NOT
+  COMPLETE) (packages/core/test/e2e.test.ts, verify.test.ts).
 - Adapter contract: artifact shapes, shared block ids, detection signals,
-  confidence honesty (packages/adapters/test).
+  confidence honesty, workflow-command pointers (packages/adapters/test).
 - Smoke: CLI end-to-end in a temp project (init → install → doctor →
   status → uninstall) — run manually per CONTRIBUTING.md; CI wiring is
   the next milestone.

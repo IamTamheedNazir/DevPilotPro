@@ -6,15 +6,19 @@ import type { CanonicalSkill, InstallTarget } from "@steward/core";
 
 /**
  * Aider adapter.
- * Confidence "unverified": aider's --read CONVENTIONS.md convention is widely
- * documented but was not verified against official docs at authoring time.
- * Aider has no project-scope command files, so this adapter contributes a
- * single managed skill index inside CONVENTIONS.md and no per-skill artifacts.
+ * Verified 2026-09-20 against the official conventions docs
+ * (aider.chat/docs/usage/conventions.html):
+ *  - conventions are a markdown file (e.g. CONVENTIONS.md) loaded with
+ *    `aider --read CONVENTIONS.md` or `read: CONVENTIONS.md` in
+ *    .aider.conf.yml
+ * Aider has no project-scope command files, hooks, or MCP, so this adapter
+ * contributes a single managed skill index inside CONVENTIONS.md and no
+ * per-skill artifacts.
  */
 export const aiderAdapter: HarnessAdapter = {
   id: "aider" as InstallTarget,
   label: "Aider",
-  homepage: "https://aider.chat/docs/config/conventions.html",
+  homepage: "https://aider.chat/docs/usage/conventions.html",
   capabilities: {
     projectCommands: "unsupported",
     userCommands: "unsupported",
@@ -23,7 +27,7 @@ export const aiderAdapter: HarnessAdapter = {
     memoryDoc: "CONVENTIONS.md",
     hooks: false,
     mcp: false,
-    confidence: "unverified",
+    confidence: "verified",
   },
   detect(root: string): Detection {
     const signals: string[] = [];
