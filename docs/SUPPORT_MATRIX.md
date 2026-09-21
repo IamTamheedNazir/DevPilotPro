@@ -24,11 +24,11 @@ Steward exists to prevent — our own docs follow our own rules.
 | Cursor (`cursor`) | `.cursor/rules/steward-<id>.mdc` | — | no (agent-requested rules) | `partial` | cursor.com/docs/rules, 2026-09-20 |
 | OpenCode (`opencode`) | `.opencode/commands/<id>.md` + AGENTS.md block | `AGENTS.md` | yes | `verified` | opencode.ai/docs/commands, 2026-09-20 |
 | Gemini CLI (`gemini`) | `.gemini/commands/<id>.toml` + GEMINI.md block | `GEMINI.md` | yes | `verified` | Gemini CLI custom-commands docs, 2026-09-20 |
-| Windsurf (`windsurf`) | `.windsurf/rules/steward-<id>.md` (`trigger: manual`) | — | rules only | `unverified` | not yet checked |
-| Cline (`cline`) | `.clinerules/steward-<id>.md` | — | rules only | `unverified` | not yet checked |
-| Roo Code (`roo`) | `.roo/rules/steward-<id>.md` | — | rules only | `unverified` | not yet checked |
-| GitHub Copilot (`copilot`) | managed index block | `.github/copilot-instructions.md` | no | `unverified` | not yet checked |
-| Aider (`aider`) | managed index block | `CONVENTIONS.md` (via `--read`) | no | `unverified` | not yet checked |
+| Windsurf (`windsurf`) | `.windsurf/rules/steward-<id>.md` (`trigger: manual`) | — | rules only | `verified` | docs.windsurf.com/windsurf/cascade/memories (fallback rules path), 2026-09-21 |
+| Cline (`cline`) | `.clinerules/steward-<id>.main_agent.md` | — | rules only | `partial` | docs.cline.bot/memory/clinerules (folder mechanism + `.main_agent.md` mode suffix confirmed); full layout table not fetched, 2026-09-21 |
+| Roo Code (`roo`) | `.roo/rules/steward-<id>.md` | — | rules only | `verified` | docs.roocode.com/features/custom-instructions (`.roo/rules/` recursive, alphabetical merge), 2026-09-21 |
+| GitHub Copilot (`copilot`) | managed index block | `.github/copilot-instructions.md` | no | `verified` | docs.github.com/en/copilot/customizing-copilot/adding-repository-custom-instructions, 2026-09-21 |
+| Aider (`aider`) | managed index block | `CONVENTIONS.md` (via `--read`) | no | `verified` | aider.chat/docs/usage/conventions.html, 2026-09-21 |
 
 ## Design invariants (all adapters)
 
@@ -58,6 +58,11 @@ confidence level.
 | 2026-09-20 | claude | Verified skills + commands formats |
 | 2026-09-20 | opencode | Verified commands + AGENTS.md |
 | 2026-09-20 | gemini | Verified TOML commands + GEMINI.md |
+| 2026-09-21 | windsurf | Verified `.windsurf/rules/` fallback path via cascade/memories docs |
+| 2026-09-21 | roo | Verified `.roo/rules/` via docs.roocode.com/features/custom-instructions |
+| 2026-09-21 | copilot | Verified `.github/copilot-instructions.md` via GitHub Copilot docs |
+| 2026-09-21 | aider | Verified `CONVENTIONS.md` via aider.chat docs |
+| 2026-09-21 | cline | Partial: `.clinerules/` mechanism confirmed; full layout unverified |
 | 2026-09-20 | cursor | Verified .mdc rules; slash-commands not verifiable |
 | 2026-09-20 | codex | AGENTS.md confirmed; user prompts deprecated upstream |
 | — | windsurf, cline, roo, copilot, aider | Not yet verified; marked `unverified` |

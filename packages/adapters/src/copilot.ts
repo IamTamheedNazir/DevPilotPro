@@ -6,16 +6,20 @@ import type { CanonicalSkill, InstallTarget } from "@steward/core";
 
 /**
  * GitHub Copilot adapter.
- * Confidence "unverified": .github/copilot-instructions.md as the repo-wide
- * custom-instructions file is widely documented but was not verified against
- * official docs at authoring time. Copilot has no project-scope command files,
- * so this adapter contributes a single managed skill index inside its memory
- * doc and no per-skill artifacts.
+ * Verified 2026-09-20 against the official repository-instructions docs
+ * (docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/
+ * add-custom-instructions/add-repository-instructions):
+ *  - repository-wide instructions: .github/copilot-instructions.md
+ *  - path-specific instructions: .github/instructions/NAME.instructions.md
+ *  - agents also read AGENTS.md (nearest file wins)
+ * Copilot has no project-scope command files, so this adapter contributes a
+ * single managed skill index inside its memory doc and no per-skill
+ * artifacts. Hooks/MCP: MCP is supported by Copilot; hooks are not.
  */
 export const copilotAdapter: HarnessAdapter = {
   id: "copilot" as InstallTarget,
   label: "GitHub Copilot",
-  homepage: "https://docs.github.com/copilot/customization-instructions",
+  homepage: "https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/add-custom-instructions/add-repository-instructions",
   capabilities: {
     projectCommands: "unsupported",
     userCommands: "supported",
@@ -24,7 +28,7 @@ export const copilotAdapter: HarnessAdapter = {
     memoryDoc: ".github/copilot-instructions.md",
     hooks: false,
     mcp: true,
-    confidence: "unverified",
+    confidence: "verified",
   },
   detect(root: string): Detection {
     const signals: string[] = [];

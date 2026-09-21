@@ -122,6 +122,28 @@ describe("detection", () => {
   });
 });
 
+describe("harness integration (Phase 2)", () => {
+  // Claude, Codex, and Cursor adapters must direct agents at the SAME
+  // deterministic workflow/state model — not their own local copies.
+  it("claude, codex, and cursor artifacts reference steward's deterministic engine", () => {
+    for (const id of ["claude", "codex", "cursor"] as const) {
+      const adapter = getAdapter(id);
+      const artifacts = adapter.artifacts(vibe).map((a) => a.content);
+      const block = adapter.indexBlock([vibe]);
+      const allText = [...artifacts, block?.content ?? ""].join("\n");
+      expect(allText, id).toContain("steward verify");
+      expect(allText, id).toContain("steward feature show");
+    }
+  });
+
+  it("rule-file adapters carry the same workflow directive", () => {
+    for (const id of ["windsurf", "cline", "roo"] as const) {
+      const artifact = getAdapter(id).artifacts(vibe)[0];
+      expect(artifact.content).toContain("steward verify");
+    }
+  });
+});
+
 describe("shared serialization", () => {
   it("commandStub escapes quotes for YAML scalars", () => {
     const skill = {
