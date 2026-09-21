@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import {
   addRequirement,
@@ -10,6 +10,7 @@ import {
   createPlan,
   createSpec,
   contextForTask,
+  evaluateGates,
   evidenceFor,
   getFeature,
   listFeatures,
@@ -17,8 +18,9 @@ import {
   runTaskVerification,
   startTask,
   transitionFeature,
+  runVerification,
 } from "../src/index.js";
-import { makeProject, PASS_CMD, FAIL_CMD } from "./helpers.js";
+import { makeProject, PASS_CMD, FAIL_CMD, writeImplAndTest } from "./helpers.js";
 
 /**
  * SECTION 25 — end-to-end fixture evaluation.
@@ -86,6 +88,9 @@ describe("end-to-end fixture: profile display name", () => {
     expect(getFeature(root, feature.id).state).toBe("PLANNED");
 
     // ── build/task lifecycle ────────────────────────────────────────────
+    // The implementation actually exists on disk (the guardian verifies
+    // requirement surfaces against the real repository).
+    writeImplAndTest(root, { impl: "src/profile.ts", test: "src/profile.test.ts" });
     startTask(root, feature.id, task.id);
     expect(getFeature(root, feature.id).state).toBe("IMPLEMENTING");
     const taskResult = await runTaskVerification(root, feature.id, task.id);
@@ -162,5 +167,93 @@ describe("end-to-end fixture: profile display name", () => {
     expect(found.map((x) => x.id)).toContain(f.id);
     const pack = contextForTask(root, addTask(root, f.id, { objective: "only task" }).id);
     expect(pack.title).toContain("TASK-001");
+  });
+
+  it("PHASE 3: relevant code changes after passing verification → evidence goes STALE, feature cannot complete", async () => {
+    const root = makeProject();
+    const f = createFeature(root, { title: "stale after change", request: "plain work" });
+    createSpec(root, f.id, { objective: "stale check" });
+    const r = addRequirement(root, f.id, { title: "stale requirement", status: "accepted" });
+    const t = addTask(root, f.id, {
+      objective: "work",
+      requirements: [r.id],
+      verification: [PASS_CMD],
+      expectedFiles: ["src/widget.ts"],
+    });
+    approveSpec(root, f.id);
+    createPlan(root, f.id);
+    startTask(root, f.id, t.id);
+    writeImplAndTest(root, { impl: "src/widget.ts", test: "src/widget.test.ts" });
+    await runTaskVerification(root, f.id, t.id);
+    transitionFeature(root, f.id, "VERIFYING");
+
+    // everything is fresh: eligible
+    const before = await completeFeature(root, f.id);
+    expect(before.completed).toBe(true);
+
+    // but the feature was REOPENED conceptually: change the surface afterward.
+    // Reopen by transitioning back through the machine's legal path (VERIFYING
+    // is not reachable from COMPLETE, so we assert on a second feature: the
+    // freshness property itself is covered by freshness.test.ts; here we prove
+    // the flow end-to-end on a fresh feature whose code moves mid-flight).
+    const f2 = createFeature(root, { title: "stale mid flight", request: "plain work" });
+    createSpec(root, f2.id, { objective: "stale mid flight" });
+    const r2 = addRequirement(root, f2.id, { title: "mid flight requirement", status: "accepted" });
+    const t2 = addTask(root, f2.id, {
+      objective: "work",
+      requirements: [r2.id],
+      verification: [PASS_CMD],
+      expectedFiles: ["src/mid.ts"],
+    });
+    approveSpec(root, f2.id);
+    createPlan(root, f2.id);
+    startTask(root, f2.id, t2.id);
+    writeImplAndTest(root, { impl: "src/mid.ts", test: "src/mid.test.ts" });
+    await runTaskVerification(root, f2.id, t2.id);
+    await runVerification(root, f2.id); // project-level evidence with surface stamp
+    transitionFeature(root, f2.id, "VERIFYING");
+
+    // code changes AFTER the run: the recorded pass no longer describes the
+    // current code. Gate evaluation must treat the old evidence as stale —
+    // the feature cannot be declared complete on yesterday's run.
+    writeFileSync(path.join(root, "src", "mid.ts"), "export const moved = true;\n", "utf8");
+
+    // Direct gate evaluation (no re-run): stale verification evidence must
+    // be reported, so a completion claim on stale evidence is refused.
+    const staleEvaluation = evaluateGates(root, f2.id);
+    const testGate = staleEvaluation.gates.find((g) => g.id === "verification.test");
+    expect(testGate?.status).toBe("MISSING");
+    expect(testGate?.detail).toContain("STALE");
+    expect(staleEvaluation.verdict.verdict).toBe("NOT_COMPLETE");
+
+    // completeFeature re-runs verification first (fresh evidence) — proving
+    // the recovery path is a re-run, never a claim.
+    const after = await completeFeature(root, f2.id);
+    expect(after.completed).toBe(true);
+    expect(after.evaluation.gates.find((g) => g.id === "verification.test")?.detail).toContain("fresh");
+  });
+
+  it("PHASE 3: partial implementation with passing tests is refused (guardian blocks COMPLETE)", async () => {
+    const root = makeProject();
+    const f = createFeature(root, { title: "half done", request: "plain work" });
+    createSpec(root, f.id, { objective: "half done" });
+    const r = addRequirement(root, f.id, { title: "half done requirement", status: "accepted" });
+    const t = addTask(root, f.id, {
+      objective: "work",
+      requirements: [r.id],
+      verification: [PASS_CMD],
+      expectedFiles: ["src/ghost.ts"], // declared but never written
+    });
+    approveSpec(root, f.id);
+    createPlan(root, f.id);
+    startTask(root, f.id, t.id);
+    await runTaskVerification(root, f.id, t.id); // synthetic pass
+    transitionFeature(root, f.id, "VERIFYING");
+
+    const outcome = await completeFeature(root, f.id);
+    expect(outcome.completed).toBe(false);
+    const guardian = outcome.evaluation.gates.find((g) => g.id === "gates.guardian");
+    expect(guardian?.status).toBe("FAIL");
+    expect(outcome.evaluation.verdict.verdict).toBe("NOT_COMPLETE");
   });
 });

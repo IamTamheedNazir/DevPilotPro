@@ -44,10 +44,18 @@ with stored summaries is.
 | browser QA review | feature surfaces UI (`ui: true` or detected) |
 | security review | feature risk ≥ HIGH, or touches auth/payments/secrets |
 | no unresolved blockers | always |
-| no unresolved blockers in debug | debug session open |
+| guardian: requirements implemented | always (Phase 3) — repository analysis must confirm every requirement's surface |
 
 Irrelevant gates are never required — a docs-only change does not demand
 browser QA.
+
+## Evidence freshness (Phase 3)
+
+Passing evidence is stamped with the hash of the feature's code surface
+(expected files + transitive dependents). If relevant code changes after
+the run, the gate reverts to MISSING with a STALE detail — yesterday's
+green run never covers today's code. See
+[GUARDIAN.md](GUARDIAN.md) and `steward freshness <feature>`.
 
 ## Baseline: pre-existing vs regression
 
