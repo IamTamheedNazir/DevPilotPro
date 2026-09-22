@@ -63,6 +63,32 @@ steward doctor
 #    lifecycle — refusing to skip the gates.
 ```
 
+## Cross-agent memory (Phase 5)
+
+Steward remembers decisions, conventions, and root causes across sessions
+**and across harnesses** — a Codex session inherits what a Claude session
+learned:
+
+```bash
+steward session open --harness claude --feature FEAT-001
+# ... work happens; decisions/lessons get recorded ...
+steward handoff create --from-session SESS-001 --harness claude \
+  --completed "invite model + endpoints" --remaining "acceptance email flow" \
+  --warnings "never log the invitation token" --memory MEM-DEC-001
+
+# The next agent (any harness) starts here:
+steward brief
+steward handoff latest
+steward ask "are invitations soft deleted?"
+
+# Learned conventions are candidates until a human accepts them:
+steward memory learn
+steward memory accept MEM-CONV-001   # becomes binding for Guardian
+```
+
+See [docs/ENGINEERING_MEMORY.md](docs/ENGINEERING_MEMORY.md) for the
+authority model, freshness, and retrieval.
+
 ## Commands
 
 | Command | What it does |
@@ -77,6 +103,11 @@ steward doctor
 | `steward update` | Regenerate managed artifacts after upgrading or changing profile |
 | `steward repair` | Restore missing/drifted managed files (idempotent) |
 | `steward uninstall` | Remove Steward artifacts; brain and user edits are preserved |
+| `steward memory` | Durable engineering memory: add/list/show/accept/reject/confirm/freshness/learn/lesson |
+| `steward session` | Agent work sessions: open, note, close, list (cross-harness) |
+| `steward handoff` | Cross-agent work handoffs: create, latest, show |
+| `steward brief` | Session-start briefing: handoff, governing memory, candidates, active features |
+| `steward ask` | Ask project truth a question; answers cite authority, never guess |
 
 ## Profiles
 
@@ -123,6 +154,9 @@ Confidence is evidence-backed and documented in
 [docs/SUPPORT_MATRIX.md](docs/SUPPORT_MATRIX.md) — including what we have
 not verified yet. Design notes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 How the project brain works: [docs/PROJECT_BRAIN.md](docs/PROJECT_BRAIN.md).
+How durable engineering memory works — decisions, learned conventions,
+`steward brief` / `steward ask`, and cross-agent handoffs:
+[docs/ENGINEERING_MEMORY.md](docs/ENGINEERING_MEMORY.md).
 Prior art and what we took from it:
 [docs/reference-analysis.md](docs/reference-analysis.md).
 
@@ -131,7 +165,7 @@ Prior art and what we took from it:
 ```bash
 bun install
 bun tsc -b --noEmit   # typecheck
-bun vitest run        # 54 tests across core + adapters
+bun vitest run        # 217 tests across core + adapters
 bun packages/cli/src/index.ts --help
 ```
 
@@ -140,10 +174,12 @@ commands.
 
 ## Status
 
-v0.1.0 — core engine, skill library, 10 adapters, CLI, and test suite are
-implemented and passing. Next: CI wiring for the new packages, `evidence`
-and `handoff` CLI subcommands, and doc verification for the remaining
-unverified adapters.
+Phase 5 — engineering memory, learned conventions, smart retrieval, and
+cross-agent handoffs — is implemented and passing (217 tests, Node 18/20/22
+CI). Phases 1–4 (skills/adapters/installer, workflow engine, repository
+intelligence + Guardian, Security Guardian + browser QA) remain green.
+Next: Phase 6 — multi-agent orchestration, MCP, and deeper cross-harness
+intelligence.
 
 ## License
 

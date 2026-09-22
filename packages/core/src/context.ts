@@ -8,15 +8,78 @@ import { readReview } from "./state/review.js";
 import { readBaseline } from "./baseline.js";
 import { resolveCommands } from "./verification/commands.js";
 import { StateError, validateTaskId } from "./state/ids.js";
+import { retrieveMemories, formatMemoryBlock } from "./memory/retrieval.js";
+import { latestHandoff } from "./memory/handoff-store.js";
+import { acceptedConventions } from "./memory/guardian-bridge.js";
 
 /**
  * Context packs: the minimal, deterministic context an agent needs to work
  * on one task or feature. Never a dump of the whole state directory.
+ *
+ * Context Pack V2 (Phase 5): packs now carry the governing project memory
+ * (authority-ranked, budgeted) and the latest handoff, so any harness picks
+ * up the same durable truth — conversation history is never required.
  */
 
 export interface ContextPack {
   title: string;
   markdown: string;
+}
+
+/**
+ * Shared V2 sections: governing memory relevant to the task/feature, plus a
+ * compact pointer to the latest handoff. Bounded so packs stay small.
+ */
+function contextPackV2Sections(
+  root: string,
+  opts: { files: string[]; featureId?: string; taskText: string }
+): string {
+  const parts: string[] = [];
+  try {
+    const retrieved = retrieveMemories(root, {
+      text: opts.taskText,
+      files: opts.files,
+      featureId: opts.featureId,
+      limit: 8,
+    });
+    const block = formatMemoryBlock(retrieved, 3000);
+    if (block) parts.push(block);
+  } catch {
+    /* memory unavailable (fresh project) — packs degrade gracefully */
+  }
+  try {
+    const handoff = latestHandoff(root, opts.featureId);
+    if (handoff) {
+      parts.push(
+        [
+          "## Latest handoff",
+          "",
+          `- ${handoff.id} from ${handoff.fromHarness} (${handoff.fromSession}) at ${handoff.createdAt}`,
+          ...(handoff.remaining.length ? handoff.remaining.slice(0, 5).map((r) => `- remaining: ${r}`) : []),
+          ...(handoff.warnings.length ? handoff.warnings.slice(0, 3).map((w) => `- warning: ${w}`) : []),
+          "",
+        ].join("\n")
+      );
+    }
+  } catch {
+    /* handoffs unavailable */
+  }
+  try {
+    const conventions = acceptedConventions(root, opts.featureId);
+    if (conventions.length > 0) {
+      parts.push(
+        [
+          "## Accepted conventions (binding)",
+          "",
+          ...conventions.slice(0, 6).map((c) => `- ${c.statement} (${c.id})`),
+          "",
+        ].join("\n")
+      );
+    }
+  } catch {
+    /* conventions unavailable */
+  }
+  return parts.join("");
 }
 
 export function contextForTask(root: string, taskId: string): ContextPack {
@@ -80,6 +143,13 @@ export function contextForTask(root: string, taskId: string): ContextPack {
       ...baseline.dirtyPaths.map((p) => `- ${p}`)
     );
   }
+  // Context Pack V2: governing memory + handoff + accepted conventions.
+  const v2 = contextPackV2Sections(root, {
+    files: task.expectedFiles.map((f) => f.replace(/\\/g, "/")),
+    featureId: feature.id,
+    taskText: `${task.objective} ${requirements.filter(Boolean).map((r) => (r ? `${r.title} ${r.description}` : "")).join(" ")}`,
+  });
+  if (v2) lines.push("", v2);
   return { title: `${task.id} (${feature.id})`, markdown: lines.join("\n") };
 }
 
@@ -107,5 +177,12 @@ export function contextForFeature(root: string, featureId: string): ContextPack 
     "",
     ...commands.map((c) => `- ${c.category}: ${c.command}`),
   ];
+  // Context Pack V2: governing memory + handoff + accepted conventions.
+  const v2 = contextPackV2Sections(root, {
+    files: [],
+    featureId,
+    taskText: `${feature.title} ${requirements.map((r) => r.title).join(" ")}`,
+  });
+  if (v2) lines.push("", v2);
   return { title: feature.id, markdown: lines.join("\n") };
 }

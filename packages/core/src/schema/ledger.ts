@@ -65,7 +65,16 @@ export type LedgerEventKind =
   | "security.review.recorded"
   // Phase 4: Browser QA kinds
   | "qa.journey.created"
-  | "qa.journey.recorded";
+  | "qa.journey.recorded"
+  // Phase 5: engineering memory + handoffs
+  | "memory.recorded"
+  | "memory.status"
+  | "memory.freshness"
+  | "session.opened"
+  | "session.annotated"
+  | "session.closed"
+  | "handoff.created"
+  | "memory.lesson.recorded";
 
 function recordHash(rec: Omit<LedgerRecord, "hash">): string {
   return sha256(
