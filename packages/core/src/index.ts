@@ -58,3 +58,6 @@ export * from "./qa/store.js";
 export * from "./qa/run.js";
 export * from "./aggregate.js";
 export * from "./debug-links.js";
+
+// Phase 5: engineering memory + learned conventions + smart retrieval + handoffs
+export * from "./memory/index.js";

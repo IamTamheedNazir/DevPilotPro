@@ -15,6 +15,9 @@ import { checkFreshness } from "./intel/freshness.js";
 import { classifySecuritySurface } from "./security/classify.js";
 import { readSecurityBaseline } from "./security/store.js";
 import { pathExists } from "./util/fs.js";
+import { conventionViolations } from "./memory/guardian-bridge.js";
+import { refreshMemoryFreshness } from "./memory/freshness.js";
+import * as fs0 from "node:fs";
 
 /**
  * Guardian aggregate (§50): one completion decision combining requirements,
@@ -46,6 +49,14 @@ export interface GuardianAggregate {
     detail: string;
   };
   evidence: { verification: string; qa: string; security: string };
+  /** Accepted-convention violations found in changed files (Phase 5). */
+  conventionViolations: Array<{
+    memoryId: string;
+    convention: string;
+    file: string;
+    detail: string;
+    severity: string;
+  }>;
   gates: GateReport[];
   blockers: string[];
   result: "COMPLETE" | "NOT COMPLETE";
@@ -80,6 +91,31 @@ export function guardianAggregate(root: string, featureId: string): GuardianAggr
   const blockers = [...evaluation.verdict.remainingGates];
 
   const securityStale = secReview ? secFresh.freshness === "STALE" : false;
+
+  // Phase 5: accepted-convention violations over the changed surface.
+  // Stale memory is re-evaluated first so a reverted edit restores the memory.
+  try {
+    refreshMemoryFreshness(root);
+  } catch {
+    /* freshness needs a repo; degrade silently */
+  }
+  const changedForConventions = workingTreeChangesForAggregate(root);
+  const violations = conventionViolations(
+    root,
+    changedForConventions.map((rel) => {
+      const abs = `${root}/${rel}`;
+      let content = "";
+      try {
+        content = fs0.readFileSync(abs, "utf8");
+      } catch {
+        content = "";
+      }
+      return { path: rel, content };
+    })
+  );
+  for (const v of violations) {
+    blockers.push(`convention ${v.memoryId} violated in ${v.file}: ${v.detail}`);
+  }
 
   return {
     featureId,
@@ -130,6 +166,7 @@ export function guardianAggregate(root: string, featureId: string): GuardianAggr
       qa: qaStatus.journeys.length === 0 ? checkFreshness(root, featureId, "review.qa").freshness : "JOURNEY_BASED",
       security: secFresh.freshness,
     },
+    conventionViolations: violations,
     gates,
     blockers,
     result: evaluation.verdict.verdict === "COMPLETE_ELIGIBLE" ? "COMPLETE" : "NOT COMPLETE",
@@ -152,6 +189,7 @@ export function shipCheck(root: string): ShipCheck {
   let securityFails = 0;
   let qaAttention = 0;
   let staleEvidence = 0;
+  let conventionFails = 0;
   for (const f of features) {
     const agg = guardianAggregate(root, f);
     if (agg.result !== "COMPLETE") totalGatesBlocking += 1;
@@ -159,6 +197,7 @@ export function shipCheck(root: string): ShipCheck {
     if (agg.qa.required && agg.qa.status === "ATTENTION") qaAttention += 1;
     if (agg.evidence.verification === "STALE") staleEvidence += 1;
     if (agg.evidence.security === "STALE") staleEvidence += 1;
+    if (agg.conventionViolations.length > 0) conventionFails += 1;
   }
 
   checks.push({
@@ -187,6 +226,12 @@ export function shipCheck(root: string): ShipCheck {
     title: "Stale required evidence",
     status: staleEvidence === 0 ? "PASS" : "FAIL",
     detail: `${staleEvidence} stale evidence surface(s)`,
+  });
+  checks.push({
+    id: "conventions",
+    title: "Accepted conventions",
+    status: conventionFails === 0 ? "PASS" : "WARN",
+    detail: conventionFails === 0 ? "no accepted-convention violations" : `${conventionFails} feature(s) violate accepted conventions`,
   });
 
   // HIGH assumptions block (§52).
@@ -238,4 +283,13 @@ function countHighAssumptions(root: string): number {
 export { readSecurityBaseline };
 export { classifySecuritySurface };
 export { StateError };
+
+import { workingTreeChanges } from "./intel/impact.js";
+function workingTreeChangesForAggregate(root: string): string[] {
+  try {
+    return workingTreeChanges(root).filter((p) => !p.startsWith(".steward/") && !p.startsWith(".vibe/"));
+  } catch {
+    return [];
+  }
+}
 export { Ledger };

@@ -84,8 +84,32 @@ import {
   debugFromSecurity,
   readQaPolicy,
   readSecurityPolicy,
+  // Phase 5: engineering memory + handoffs
+  addMemory,
+  readMemories,
+  getMemory,
+  transitionMemory,
+  refreshMemoryFreshness,
+  learnConventions,
+  retrieveMemories,
+  formatMemoryBlock,
+  askProject,
+  briefProject,
+  openSession,
+  annotateSession,
+  closeSession,
+  listSessions,
+  createHandoff,
+  listHandoffs,
+  getHandoff,
+  latestHandoff,
+  handoffMarkdown,
+  recordRootCauseMemory,
+  pendingRootCauses,
+  acceptedConventions,
 } from "@steward/core";
 import { out } from "./format.js";
+import { parseScopes, listOpt, collect } from "./cli-helpers.js";
 
 function emit(data: unknown, json: boolean): void {
   if (json) {
@@ -1110,7 +1134,356 @@ export function registerWorkflowCommands(program: Command): void {
       console.log(`\n  ${result.summary}\n`);
       if (!result.ready) process.exitCode = 1;
     });
+
+  // ─── Phase 5: engineering memory + sessions + handoffs + brief/ask ──
+
+  const memory = program.command("memory").description("Durable engineering memory: decisions, conventions, lessons");
+
+  memory
+    .command("add")
+    .description("Record a memory. Provenance (--basis) is strongly encouraged; authority is checked.")
+    .requiredOption("--kind <k>", "decision|convention|project-fact|root-cause|lesson|workflow|warning|environment|preference|historical")
+    .requiredOption("--title <text>", "Short title")
+    .requiredOption("--statement <text>", "The durable statement")
+    .option("--authority <a>", "AGENT_OBSERVATION|LEARNED_CANDIDATE|ACCEPTED_CONVENTION|VERIFIED_EVIDENCE|ACCEPTED_REQUIREMENT|PROJECT_POLICY", "AGENT_OBSERVATION")
+    .option("--scope <spec>", "scope[:target], e.g. project, package:packages/api, directory:src/auth (repeatable)", collect("--scope"))
+    .option("--basis <items>", "Comma-separated deterministic facts (provenance)")
+    .option("--support <files>", "Comma-separated supporting files (freshness surface)")
+    .option("--related <ids>", "Comma-separated related ids (feature/debug/requirement)")
+    .option("--from-evidence <ref>", "Evidence/ledger reference backing this memory")
+    .option("--json", "Machine-readable output", false)
+    .action((opts: { kind: string; title: string; statement: string; authority: string; scope: string[]; basis?: string; support?: string; related?: string; fromEvidence?: string; json: boolean }) => {
+      try {
+        const m = addMemory(process.cwd(), {
+          kind: opts.kind as never,
+          title: opts.title,
+          statement: opts.statement,
+          authority: opts.authority as never,
+          scopes: parseScopes(opts.scope),
+          provenance: {
+            kind: "agent",
+            actor: process.env.STEWARD_HARNESS ?? "cli",
+            basis: listOpt(opts.basis),
+            evidenceRef: opts.fromEvidence,
+          },
+          supportFiles: listOpt(opts.support),
+          related: listOpt(opts.related),
+        });
+        if (opts.json) return emit(m, true);
+        console.log(`\n  ${out.green("✔")} memory ${out.bold(m.id)} recorded (${m.authority}, ${m.status})`);
+        const why = m.provenance.basis.join("; ") || "no basis recorded — memory without provenance is weak";
+        console.log(`\n  Why: ${why.slice(0, 200)}\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  memory
+    .command("list")
+    .description("List memory (default: governing + candidates)")
+    .option("--all", "Include REJECTED/SUPERSEDED", false)
+    .option("--json", "Machine-readable output", false)
+    .action((opts: { all: boolean; json: boolean }) => {
+      const all = readMemories(process.cwd()).memories;
+      const visible = opts.all ? all : all.filter((m) => m.status !== "REJECTED" && m.status !== "SUPERSEDED");
+      if (opts.json) return emit(visible, true);
+      console.log("");
+      for (const m of visible) {
+        const status = m.status === "ACTIVE" ? out.green(m.status) : m.status === "CANDIDATE" ? out.yellow(m.status) : m.status === "CONFLICTED" || m.status === "STALE" ? out.red(m.status) : out.dim(m.status);
+        console.log(`  ${m.id.padEnd(16)} ${m.authority.padEnd(22)} ${status.padEnd(12)} ${m.title}`);
+      }
+      if (visible.length === 0) console.log(out.dim("  (no memory recorded)"));
+      console.log("");
+    });
+
+  memory
+    .command("show")
+    .description("Show one memory with full provenance")
+    .argument("<id>", "Memory id (MEM-...)")
+    .option("--json", "Machine-readable output", false)
+    .action((id: string, opts: { json: boolean }) => {
+      try {
+        const m = getMemory(process.cwd(), id);
+        if (opts.json) return emit(m, true);
+        console.log(`\n  ${out.bold(m.id)} — ${m.title}`);
+        console.log(`  ${m.statement}\n`);
+        console.log(`  kind=${m.kind} authority=${m.authority} status=${m.status} confidence=${m.confidence}`);
+        console.log(`  provenance: ${m.provenance.kind}/${m.provenance.actor} at ${m.provenance.at}`);
+        for (const b of m.provenance.basis) console.log(`    basis: ${b}`);
+        if (m.provenance.evidenceRef) console.log(`    evidence: ${m.provenance.evidenceRef}`);
+        console.log("");
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  memory
+    .command("accept")
+    .description("Accept a candidate memory (becomes ACCEPTED_CONVENTION authority)")
+    .argument("<id>", "Memory id")
+    .action((id: string) => {
+      try {
+        const m = transitionMemory(process.cwd(), id, "accept", { by: process.env.STEWARD_HARNESS ?? "cli" });
+        console.log(`\n  ${out.green("✔")} ${m.id} is now ${m.status} (${m.authority})\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  memory
+    .command("reject")
+    .description("Reject a memory (it will not govern)")
+    .argument("<id>", "Memory id")
+    .action((id: string) => {
+      try {
+        const m = transitionMemory(process.cwd(), id, "reject", { by: process.env.STEWARD_HARNESS ?? "cli" });
+        console.log(`\n  ${out.green("✔")} ${m.id} rejected\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  memory
+    .command("confirm")
+    .description("Re-confirm a memory (refreshes recency)")
+    .argument("<id>", "Memory id")
+    .action((id: string) => {
+      try {
+        const m = transitionMemory(process.cwd(), id, "confirm", { by: process.env.STEWARD_HARNESS ?? "cli" });
+        console.log(`\n  ${out.green("✔")} ${m.id} confirmed (${m.status})\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  memory
+    .command("freshness")
+    .description("Re-check memory against its supporting files (marks STALE / restores)")
+    .action(() => {
+      const outcome = refreshMemoryFreshness(process.cwd());
+      console.log(`\n  checked ${outcome.checked} memory record(s): ${out.red(String(outcome.staled.length))} staled, ${out.green(String(outcome.restored.length))} restored\n`);
+      for (const id of outcome.staled) console.log(`  ${out.red("STALE")}   ${id} — supporting code changed; re-confirm or supersede`);
+      for (const id of outcome.restored) console.log(`  ${out.green("ACTIVE")} ${id} — support matches recorded digest`);
+    });
+
+  const lesson = memory
+    .command("lesson")
+    .description("Lessons from verified debug/QA outcomes — the next agent must not rediscover them");
+
+  lesson
+    .command("record")
+    .description("Record root-cause memory from a debug session that reached VERIFY")
+    .requiredOption("--debug <id>", "Debug session id (DEBUG-NNN)")
+    .requiredOption("--root-cause <text>", "The verified root cause")
+    .option("--resolution <text>", "How it was fixed")
+    .option("--files <list>", "Comma-separated affected files (freshness surface)")
+    .action((opts: { debug: string; rootCause: string; resolution?: string; files?: string }) => {
+      try {
+        const m = recordRootCauseMemory(process.cwd(), {
+          sessionId: opts.debug,
+          rootCause: opts.rootCause,
+          resolution: opts.resolution,
+          affectedFiles: listOpt(opts.files),
+        });
+        console.log(`\n  ${out.green("✔")} root-cause memory ${out.bold(m.id)} recorded (${m.authority})`);
+        console.log(`\n  Next agent inherits it: steward ask \"${m.title}\"\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  lesson
+    .command("pending")
+    .description("Debug sessions at VERIFY with a root cause but no lesson memory yet")
+    .action(() => {
+      const ids = pendingRootCauses(process.cwd());
+      console.log("");
+      if (ids.length === 0) {
+        console.log(out.dim("  (no pending root causes)"));
+      } else {
+        for (const id of ids) console.log(`  ${out.yellow(id)} — record with: steward memory lesson record --debug ${id} --root-cause "…"`);
+      }
+      console.log("");
+    });
+
+  memory
+    .command("learn")
+    .description("Scan the repository for repeated patterns; record them as CANDIDATE conventions")
+    .option("--json", "Machine-readable output", false)
+    .action((opts: { json: boolean }) => {
+      try {
+        const result = learnConventions(process.cwd());
+        if (opts.json) return emit(result, true);
+        console.log(`\n  ${out.bold("CONVENTION SCAN")} — ${result.observations} observation(s), ${result.proposed.length} new candidate(s), ${result.skippedDuplicates} duplicate(s)\n`);
+        for (const p of result.proposed) {
+          const mark = p.contradicted.length > 0 ? out.red("CONFLICTED") : out.yellow("CANDIDATE");
+          console.log(`  ${mark.padEnd(12)} ${p.memory.id.padEnd(16)} ${p.memory.statement}`);
+          for (const c of p.contradicted) console.log(`    ${out.red("↳ conflicts with")} ${c.id}: ${c.statement}`);
+        }
+        if (result.proposed.length > 0) {
+          console.log("\n  Candidates are NOT project truth. Accept explicitly: steward memory accept <id>\n");
+        }
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  const session = program.command("session").description("Agent work sessions (cross-harness)");
+
+  session
+    .command("open")
+    .description("Open a work session for the current harness")
+    .requiredOption("--harness <name>", "claude|codex|cursor|gemini|opencode|...")
+    .option("--feature <id>", "Related feature id")
+    .option("--json", "Machine-readable output", false)
+    .action((opts: { harness: string; feature?: string; json: boolean }) => {
+      try {
+        const s = openSession(process.cwd(), { harness: opts.harness, featureId: opts.feature });
+        if (opts.json) return emit(s, true);
+        console.log(`\n  ${out.green("✔")} session ${out.bold(s.id)} opened (${s.harness})`);
+        console.log(`\n  Annotate as you go: steward session note ${s.id} --kind note --text "..."\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  session
+    .command("note")
+    .description("Annotate a session (note|decision|artifact|evidence)")
+    .argument("<id>", "Session id")
+    .requiredOption("--kind <k>", "note|decision|artifact|evidence", "note")
+    .requiredOption("--text <text>", "Annotation text")
+    .action((id: string, opts: { kind: string; text: string }) => {
+      try {
+        annotateSession(process.cwd(), id, { kind: opts.kind as never, text: opts.text });
+        console.log(`\n  ${out.green("✔")} recorded\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  session
+    .command("close")
+    .description("Close a session (prefer handoff create to hand work to the next agent)")
+    .argument("<id>", "Session id")
+    .action((id: string) => {
+      try {
+        closeSession(process.cwd(), id);
+        console.log(`\n  ${out.green("✔")} ${id} closed\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  session
+    .command("list")
+    .description("List sessions")
+    .option("--json", "Machine-readable output", false)
+    .action((opts: { json: boolean }) => {
+      const sessions = listSessions(process.cwd());
+      if (opts.json) return emit(sessions, true);
+      console.log("");
+      for (const s of sessions) {
+        console.log(`  ${s.id.padEnd(10)} ${s.harness.padEnd(10)} ${s.status.padEnd(11)} entries=${String(s.entries.length).padEnd(4)} ${s.featureId ?? ""}`);
+      }
+      if (sessions.length === 0) console.log(out.dim("  (no sessions)"));
+      console.log("");
+    });
+
+  const handoff = program.command("handoff").description("Cross-agent work handoffs");
+
+  handoff
+    .command("create")
+    .description("Hand work to the next agent (any harness): completed, remaining, warnings, memory to load")
+    .requiredOption("--from-session <id>", "Session id the work happened in")
+    .option("--harness <name>", "Outgoing harness name", process.env.STEWARD_HARNESS ?? "unknown")
+    .option("--feature <id>", "Feature id (defaults to the session's)")
+    .option("--completed <items>", "Comma-separated completed items")
+    .option("--remaining <items>", "Comma-separated remaining work")
+    .option("--warnings <items>", "Comma-separated warnings for the next agent")
+    .option("--memory <ids>", "Comma-separated memory ids to load first")
+    .option("--evidence <refs>", "Comma-separated evidence references")
+    .option("--json", "Machine-readable output", false)
+    .action((opts: { fromSession: string; harness: string; feature?: string; completed?: string; remaining?: string; warnings?: string; memory?: string; evidence?: string; json: boolean }) => {
+      try {
+        const h = createHandoff(process.cwd(), {
+          fromSession: opts.fromSession,
+          fromHarness: opts.harness,
+          featureId: opts.feature,
+          completed: listOpt(opts.completed),
+          remaining: listOpt(opts.remaining),
+          warnings: listOpt(opts.warnings),
+          memoryIds: listOpt(opts.memory),
+          evidenceRefs: listOpt(opts.evidence),
+        });
+        if (opts.json) return emit(h, true);
+        console.log(`\n  ${out.green("✔")} handoff ${out.bold(h.id)} created from session ${h.fromSession}`);
+        console.log("\n  Next agent (any harness) starts with: steward handoff latest\n");
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  handoff
+    .command("latest")
+    .description("Consume the latest handoff (the cross-harness entry point)")
+    .option("--feature <id>", "Feature-scoped handoff")
+    .option("--json", "Machine-readable output", false)
+    .action((opts: { feature?: string; json: boolean }) => {
+      const h = latestHandoff(process.cwd(), opts.feature);
+      if (!h) {
+        console.log("\n  (no handoff recorded)\n");
+        return;
+      }
+      if (opts.json) return emit(h, true);
+      console.log(`\n${handoffMarkdown(process.cwd(), h)}\n`);
+    });
+
+  handoff
+    .command("show")
+    .description("Show one handoff")
+    .argument("<id>", "Handoff id (HO-NNN)")
+    .option("--json", "Machine-readable output", false)
+    .action((id: string, opts: { json: boolean }) => {
+      try {
+        const h = getHandoff(process.cwd(), id);
+        if (opts.json) return emit(h, true);
+        console.log(`\n${handoffMarkdown(process.cwd(), h)}\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  program
+    .command("brief")
+    .description("Session-start briefing: handoff, governing memory, candidates, active features")
+    .option("--feature <id>", "Feature-scoped brief")
+    .action((opts: { feature?: string }) => {
+      try {
+        const brief = briefProject(process.cwd(), opts.feature);
+        console.log(`\n${brief.markdown}\n`);
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
+
+  program
+    .command("ask")
+    .description("Ask project truth a question (decisions, conventions, root causes). Answers cite authority.")
+    .argument("<question...>", "The question")
+    .option("--feature <id>", "Feature-scoped retrieval")
+    .action((question: string[], opts: { feature?: string }) => {
+      try {
+        const result = askProject(process.cwd(), question.join(" "), { featureId: opts.feature });
+        console.log(`\n${result.answer}\n`);
+        if (result.noProjectTruth) process.exitCode = 3; // distinct code: nothing recorded
+      } catch (err) {
+        fail(err as Error);
+      }
+    });
 }
+
+// scope/listOpt/collect helpers live in ./cli-helpers.js (Phase 5)
 
 /** Parse 'goto:/path' 'click:sel' 'fill:sel:value' 'expect:sel:text' steps. */
 function parseStepArg(arg: string): { kind: string; selector?: string; value?: string; text?: string; url?: string } {

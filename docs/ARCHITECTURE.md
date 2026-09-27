@@ -66,6 +66,32 @@ deterministic):
   and carries no stub markers — even when all tests pass
   (see docs/GUARDIAN.md). Enforced as a Definition-of-Done gate.
 
+**Phase 4 — security guardian + browser QA** (same package, still
+deterministic):
+
+- `security/` — normalized security findings, surface classification from
+  change content, secret scanning, dependency audit normalization,
+  authorization checks, threat models, and review state with evidence
+  freshness (see docs/SECURITY_GUARDIAN.md).
+- `qa/` — browser QA journeys, provider results, artifacts, and
+  journey-aware freshness (selective invalidation: an unrelated backend
+  change must not invalidate a frontend journey) (see docs/BROWSER_QA.md).
+
+**Phase 5 — engineering memory + cross-agent handoffs** (same package,
+still deterministic — no embeddings, no cloud):
+
+- `memory/` — durable engineering memory under `.steward/memory/`
+  (`steward.memory.v1`): authority-ranked records with provenance,
+  deterministic lifecycle, the learned-convention engine over the Phase 3
+  index, contradiction detection, support-file freshness, deterministic
+  retrieval ranking, sessions (`steward.session.v1`) and handoffs
+  (`steward.handoff.v1`), `briefProject`/`askProject`, and the
+  Guardian convention bridge (see docs/ENGINEERING_MEMORY.md).
+- `context.ts` packs are now V2: governing memory, latest handoff, and
+  accepted conventions ride along with the task/feature context.
+- Guardian/ship-check enforce **accepted** conventions as completion
+  blockers; stale memory is excluded from enforcement.
+
 **`@steward/adapters`** implements `HarnessAdapter` per harness:
 `detect(root)`, `artifacts(skill)`, `indexBlock(skills)`. Each adapter
 records its verified formats and confidence level in its header comment
@@ -135,12 +161,18 @@ approval, in every autonomy mode except `audit` (which changes nothing).
   COMPLETE; missing evidence → NOT COMPLETE; missing review → NOT
   COMPLETE), the Phase 3 evals (partial implementation with passing
   tests → NOT COMPLETE; relevant code change after a pass → evidence STALE,
-  gates revert to MISSING), and the Phase 4 evals (deliberately buggy
+  gates revert to MISSING), the Phase 4 evals (deliberately buggy
   authorization with passing tests → security FAIL / NOT COMPLETE, then
   fixed code + authorization evidence → COMPLETE; hostile page/injected
-  text cannot alter gate decisions) (packages/core/test/e2e.test.ts,
+  text cannot alter gate decisions), and the Phase 5 evals (candidate
+  memory never governs without explicit acceptance; conflicting frameworks
+  yield scoped candidates instead of a universal rule; claude → codex
+  handoff consumed via brief/context pack/ask; accepted-convention
+  violation blocks the aggregate; secrets/injection never persist)
+  (packages/core/test/e2e.test.ts,
   verify.test.ts, guardian.test.ts, freshness.test.ts, intel.test.ts,
-  review-engine.test.ts, security-*.test.ts, qa.test.ts, phase4-eval.test.ts).
+  review-engine.test.ts, security-*.test.ts, qa.test.ts, phase4-eval.test.ts,
+  phase5-eval.test.ts).
 - Adapter contract: artifact shapes, shared block ids, detection signals,
   confidence honesty, workflow-command pointers (packages/adapters/test).
 - Smoke: CLI end-to-end in a temp project (init → install → doctor →
