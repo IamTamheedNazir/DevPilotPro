@@ -39,7 +39,7 @@
     "developer-tools",
     "cli"
   ],
-  "author": "",
+  "author": "Tamheed Nazir <62136544+IamTamheedNazir@users.noreply.github.com>",
   "license": "MIT",
   "dependencies": {
     "@octokit/rest": "^21.0.0",
