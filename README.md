@@ -44,6 +44,21 @@ or run from a checkout:
 bun packages/cli/src/index.ts --help
 ```
 
+### Claude Code plugin marketplace
+
+Prefer plugins over per-project installs? This repository is also a Claude Code
+plugin marketplace shipping the same 14 evidence-gated skills:
+
+```bash
+claude plugin marketplace add IamTamheedNazir/DevPilotPro
+claude plugin install steward@steward
+# then, in a session: /steward:vibe
+```
+
+The plugin tree (`plugins/steward/`, `.claude-plugin/marketplace.json`) is
+generated deterministically from the canonical skills — never edit it by hand.
+Run `bun run plugin:sync` after changing `skills/`; CI fails on drift.
+
 ## Quick start
 
 ```bash

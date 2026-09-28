@@ -1,0 +1,19 @@
+{
+  "name": "steward",
+  "description": "Steward engineering operating system: evidence-gated workflows (spec → plan → build → verify → ship) with deterministic completion gates and engineering memory.",
+  "version": "0.2.0",
+  "author": {
+    "name": "Tamheed Nazir",
+    "url": "https://github.com/IamTamheedNazir/DevPilotPro"
+  },
+  "homepage": "https://github.com/IamTamheedNazir/DevPilotPro",
+  "repository": "https://github.com/IamTamheedNazir/DevPilotPro",
+  "license": "MIT",
+  "keywords": [
+    "engineering",
+    "workflow",
+    "evidence",
+    "agents",
+    "skills"
+  ]
+}

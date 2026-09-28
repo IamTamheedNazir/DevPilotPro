@@ -29,6 +29,9 @@ jobs:
       - name: Type check
         run: npx tsc -b --noEmit
 
+      - name: Claude plugin tree is up to date
+        run: npx tsx scripts/sync-claude-plugin.ts --check
+
       - name: Run tests
         run: npx vitest run
 

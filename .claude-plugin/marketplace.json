@@ -1,0 +1,30 @@
+{
+  "name": "steward",
+  "description": "Steward — the engineering operating system for AI coding agents. Evidence over claims: IDEA → SPEC → PLAN → IMPLEMENT → TEST → VERIFY → COMPLETE, with deterministic state, Guardian checks, security review, and engineering memory.",
+  "owner": {
+    "name": "Tamheed Nazir",
+    "url": "https://github.com/IamTamheedNazir/DevPilotPro"
+  },
+  "plugins": [
+    {
+      "name": "steward",
+      "source": "./plugins/steward",
+      "description": "14 evidence-gated engineering workflow skills (vibe, spec, plan, build, test, verify, debug, security, qa, review, docs, ship, research, architecture) with deterministic completion gates.",
+      "version": "0.2.0",
+      "author": {
+        "name": "Tamheed Nazir",
+        "url": "https://github.com/IamTamheedNazir/DevPilotPro"
+      },
+      "homepage": "https://github.com/IamTamheedNazir/DevPilotPro",
+      "repository": "https://github.com/IamTamheedNazir/DevPilotPro",
+      "license": "MIT",
+      "keywords": [
+        "engineering",
+        "workflow",
+        "evidence",
+        "agents",
+        "skills"
+      ]
+    }
+  ]
+}

@@ -6,6 +6,7 @@ export * from "./cursor.js";
 export * from "./opencode.js";
 export * from "./gemini.js";
 export * from "./windsurf.js";
+export * from "./claude-plugin.js";
 export * from "./cline.js";
 export * from "./roo.js";
 export * from "./copilot.js";

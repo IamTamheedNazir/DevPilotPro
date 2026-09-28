@@ -22,6 +22,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "steward": "bun packages/cli/src/index.ts",
+    "plugin:sync": "bun scripts/sync-claude-plugin.ts",
+    "plugin:check": "bun scripts/sync-claude-plugin.ts --check",
     "lint": "eslint .",
     "format": "prettier --write .",
     "prepublishOnly": "npm run build"
